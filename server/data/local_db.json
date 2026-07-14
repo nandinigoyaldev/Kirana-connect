@@ -1,0 +1,417 @@
+{
+  "users": [
+    {
+      "_id": "60d5ec49867c293444747b01",
+      "name": "Aarav Sharma",
+      "email": "customer@example.com",
+      "password": "password",
+      "role": "customer",
+      "phone": "+91 98765 43210",
+      "createdAt": "2026-07-01T12:00:00.000Z"
+    },
+    {
+      "_id": "60d5ec49867c293444747b02",
+      "name": "Rajesh Kumar",
+      "email": "shopkeeper@example.com",
+      "password": "password",
+      "role": "shopkeeper",
+      "phone": "+91 87654 32109",
+      "storeId": "60d5ec49867c293444747b11",
+      "createdAt": "2026-07-01T12:00:00.000Z"
+    },
+    {
+      "_id": "60d5ec49867c293444747b03",
+      "name": "Sunita Gupta",
+      "email": "sunita@example.com",
+      "password": "password",
+      "role": "shopkeeper",
+      "phone": "+91 76543 21098",
+      "storeId": "60d5ec49867c293444747b12",
+      "createdAt": "2026-07-02T12:00:00.000Z"
+    },
+    {
+      "_id": "60d5ec49867c293444747b04",
+      "name": "Amit Patel",
+      "email": "delivery@example.com",
+      "password": "password",
+      "role": "delivery",
+      "phone": "+91 65432 10987",
+      "createdAt": "2026-07-02T12:00:00.000Z"
+    },
+    {
+      "_id": "60d5ec49867c293444747b05",
+      "name": "Platform Admin",
+      "email": "admin@example.com",
+      "password": "password",
+      "role": "admin",
+      "phone": "+91 99999 88888",
+      "createdAt": "2026-07-01T12:00:00.000Z"
+    }
+  ],
+  "stores": [
+    {
+      "_id": "60d5ec49867c293444747b11",
+      "name": "Kumar Kirana Store",
+      "owner": "60d5ec49867c293444747b02",
+      "address": "Shop 12, Main Bazaar, Sector 4, Gurgaon",
+      "location": {
+        "lat": 28.4595,
+        "lng": 77.0266
+      },
+      "rating": 4.8,
+      "image": "https://images.unsplash.com/photo-1608686207856-001b95cf60ca?w=600&auto=format&fit=crop",
+      "deliveryFee": 30
+    },
+    {
+      "_id": "60d5ec49867c293444747b12",
+      "name": "Gupta Provision Store",
+      "owner": "60d5ec49867c293444747b03",
+      "address": "Shop 4, Block C, Vyapar Kendra, Gurgaon",
+      "location": {
+        "lat": 28.462,
+        "lng": 77.029
+      },
+      "rating": 4.6,
+      "image": "https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=600&auto=format&fit=crop",
+      "deliveryFee": 40
+    },
+    {
+      "_id": "60d5ec49867c293444747b13",
+      "name": "Daily Needs Super Store",
+      "owner": "60d5ec49867c293444747b05",
+      "address": "Metro Station Plaza, Huda City, Gurgaon",
+      "location": {
+        "lat": 28.457,
+        "lng": 77.032
+      },
+      "rating": 4.3,
+      "image": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop",
+      "deliveryFee": 20
+    }
+  ],
+  "products": [
+    {
+      "_id": "60d5ec49867c293444747b21",
+      "name": "Amul Gold Milk (1L)",
+      "description": "Fresh and pasteurized full cream milk.",
+      "category": "Dairy",
+      "price": 66,
+      "image": "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300",
+      "unit": "packet"
+    },
+    {
+      "_id": "60d5ec49867c293444747b22",
+      "name": "Britannia Premium Bread",
+      "description": "Soft sliced white sandwich bread.",
+      "category": "Bakery",
+      "price": 45,
+      "image": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300",
+      "unit": "packet"
+    },
+    {
+      "_id": "60d5ec49867c293444747b23",
+      "name": "Farm Fresh Eggs (12 pcs)",
+      "description": "High protein farm fresh eggs.",
+      "category": "Eggs & Poultry",
+      "price": 90,
+      "image": "https://images.unsplash.com/photo-1506976785307-8732e854ad03?w=300",
+      "unit": "box"
+    },
+    {
+      "_id": "60d5ec49867c293444747b24",
+      "name": "Tata Salt (1kg)",
+      "description": "Iodized vacuum evaporated salt.",
+      "category": "Pantry",
+      "price": 28,
+      "image": "https://images.unsplash.com/photo-1626132647523-66f5bf380027?w=300",
+      "unit": "packet"
+    },
+    {
+      "_id": "60d5ec49867c293444747b25",
+      "name": "Aashirvaad Chakki Atta (5kg)",
+      "description": "100% whole wheat flour.",
+      "category": "Pantry",
+      "price": 260,
+      "image": "https://images.unsplash.com/photo-1574316071802-0d684efa7bf5?w=300",
+      "unit": "bag"
+    },
+    {
+      "_id": "60d5ec49867c293444747b26",
+      "name": "Fortune Soya Oil (1L)",
+      "description": "Refined soyabean cooking oil.",
+      "category": "Pantry",
+      "price": 135,
+      "image": "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=300",
+      "unit": "bottle"
+    },
+    {
+      "_id": "60d5ec49867c293444747b27",
+      "name": "Surf Excel Easy Wash (1kg)",
+      "description": "Detergent powder for clean clothes.",
+      "category": "Household",
+      "price": 170,
+      "image": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=300",
+      "unit": "packet"
+    },
+    {
+      "_id": "60d5ec49867c293444747b28",
+      "name": "Maggi Masala Noodles (12-pk)",
+      "description": "Favorite masala instant noodles.",
+      "category": "Snacks",
+      "price": 168,
+      "image": "https://images.unsplash.com/photo-1612966608967-302fb5a2ad81?w=300",
+      "unit": "pack"
+    }
+  ],
+  "inventory": [
+    {
+      "_id": "60d5ec49867c293444747b41",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b21",
+      "price": 63,
+      "stock": 45,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b42",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b21",
+      "price": 66,
+      "stock": 30,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b43",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b21",
+      "price": 65,
+      "stock": 25,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b44",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b22",
+      "price": 47,
+      "stock": 20,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b45",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b22",
+      "price": 43,
+      "stock": 15,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b46",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b22",
+      "price": 45,
+      "stock": 40,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b47",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b23",
+      "price": 95,
+      "stock": 10,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b48",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b23",
+      "price": 86,
+      "stock": 35,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b49",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b23",
+      "price": 90,
+      "stock": 15,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b4a",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b24",
+      "price": 27,
+      "stock": 50,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b4b",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b24",
+      "price": 28,
+      "stock": 40,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b4c",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b24",
+      "price": 26,
+      "stock": 80,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b4d",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b25",
+      "price": 255,
+      "stock": 25,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b4e",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b25",
+      "price": 265,
+      "stock": 15,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b4f",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b25",
+      "price": 260,
+      "stock": 30,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b50",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b26",
+      "price": 138,
+      "stock": 18,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b51",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b26",
+      "price": 132,
+      "stock": 22,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b52",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b26",
+      "price": 135,
+      "stock": 40,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b53",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b27",
+      "price": 165,
+      "stock": 30,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b54",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b27",
+      "price": 172,
+      "stock": 10,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b55",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b27",
+      "price": 170,
+      "stock": 12,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b56",
+      "storeId": "60d5ec49867c293444747b11",
+      "productId": "60d5ec49867c293444747b28",
+      "price": 170,
+      "stock": 50,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b57",
+      "storeId": "60d5ec49867c293444747b12",
+      "productId": "60d5ec49867c293444747b28",
+      "price": 164,
+      "stock": 32,
+      "isAvailable": true
+    },
+    {
+      "_id": "60d5ec49867c293444747b58",
+      "storeId": "60d5ec49867c293444747b13",
+      "productId": "60d5ec49867c293444747b28",
+      "price": 168,
+      "stock": 60,
+      "isAvailable": true
+    }
+  ],
+  "orders": [
+    {
+      "_id": "60d5ec49867c293444747b81",
+      "customerId": "60d5ec49867c293444747b01",
+      "deliveryPartnerId": "60d5ec49867c293444747b04",
+      "items": [
+        {
+          "productId": "60d5ec49867c293444747b21",
+          "name": "Amul Gold Milk (1L)",
+          "quantity": 2,
+          "price": 63,
+          "storeId": "60d5ec49867c293444747b11",
+          "status": "prepared"
+        },
+        {
+          "productId": "60d5ec49867c293444747b22",
+          "name": "Britannia Premium Bread",
+          "quantity": 1,
+          "price": 43,
+          "storeId": "60d5ec49867c293444747b12",
+          "status": "prepared"
+        }
+      ],
+      "subtotal": 169,
+      "deliveryFee": 30,
+      "taxes": 8,
+      "total": 207,
+      "status": "accepted",
+      "paymentMethod": "cod",
+      "paymentStatus": "pending",
+      "shippingAddress": "A-404, Maple Heights, Sector 45, Gurgaon",
+      "isOptimized": true,
+      "createdAt": "2026-07-14T12:00:00.000Z"
+    }
+  ],
+  "wallets": [
+    {
+      "_id": "60d5ec49867c293444747b91",
+      "userId": "60d5ec49867c293444747b04",
+      "balance": 350,
+      "escrowBalance": 0,
+      "transactions": [
+        {
+          "amount": 120,
+          "type": "earning",
+          "description": "Order delivery fee earning (Order #60d5ec49867c293444747b81)",
+          "date": "2026-07-14T10:15:00.000Z"
+        },
+        {
+          "amount": 230,
+          "type": "deposit",
+          "description": "Platform sign up bonus",
+          "date": "2026-07-02T12:10:00.000Z"
+        }
+      ]
+    }
+  ]
+}
