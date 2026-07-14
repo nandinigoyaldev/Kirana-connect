@@ -104,33 +104,34 @@ A floating control bar **"Switch Roles Demo"** is present on the bottom-right co
 
 ## 🌐 Production Deployment Guide (Free Tier)
 
-This project is configured to be deployed on **Vercel** (Frontend) and **Render** (Backend API + WebSockets) using a free database cluster:
+This project is configured to be deployed on **Vercel** (Frontend) and **Render** (Backend API + WebSockets) using a free **Supabase** database:
 
-### 1. Database (MongoDB Atlas - Free Tier)
-1. Sign up/log in to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
-2. Create a free shared cluster.
-3. Under **Database Access**, create a user credentials.
-4. Under **Network Access**, add IP address `0.0.0.0/0` to allow traffic.
-5. Copy your connection string (e.g. `mongodb+srv://...`).
+### 1. Database (Supabase - Free Tier)
+1. Go to [Supabase](https://supabase.com) and sign up with GitHub.
+2. Click **New Project**, choose a name (e.g. `kirana-connect`), set a password, choose a region near you, and select the **Free** tier.
+3. Click **Create new project** and wait 1-2 minutes for it to build.
+4. Go to **Settings (Gear Icon)** in the bottom-left sidebar > **API**.
+5. Copy your **Project URL** and the **anon public** API key.
+6. In the left-hand sidebar, click the **SQL Editor** (looks like `>_`). Click **New Query**, paste the table creation script from [implementation_plan.md](file:///Users/nandini/.gemini/antigravity-ide/brain/e93ad50f-8d6d-4d8c-815c-1ee957db9552/implementation_plan.md) or [deployment_guide.md](file:///Users/nandini/.gemini/antigravity-ide/brain/e93ad50f-8d6d-4d8c-815c-1ee957db9552/deployment_guide.md), and click the green **Run** button.
 
 ### 2. Backend (Render Web Service - Free Tier)
-1. Sign up/log in to [Render](https://render.com).
-2. Click **New +** > **Web Service**.
-3. Link your GitHub repository.
-4. Configure the web service:
+1. Sign up/log in to [Render](https://render.com) with GitHub.
+2. Click **New +** > **Web Service** and connect your GitHub repository.
+3. Configure the web service:
    - **Name**: `kirana-connect-backend`
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
-5. In **Environment Variables**, add:
-   - `MONGODB_URI`: *Your MongoDB Atlas connection string*
-   - `JWT_SECRET`: *Any secure random string*
+4. Under **Advanced** / **Environment Variables**, add:
+   - `SUPABASE_URL`: *Your Supabase Project URL*
+   - `SUPABASE_ANON_KEY`: *Your Supabase anon public API Key*
+   - `JWT_SECRET`: `kiranaconnect_super_secret_key_98765` *(or any password)*
    - `PORT`: `5001`
-6. Deploy and copy your backend service URL (e.g. `https://kirana-connect-backend.onrender.com`).
+5. Deploy and copy your backend service URL (e.g. `https://kirana-connect-backend.onrender.com`).
 
 ### 3. Frontend (Vercel SPA - Free Tier)
 1. In the project root, open [vercel.json](vercel.json) and replace the two occurrences of `https://your-backend-render-app.onrender.com` with your Render backend URL.
-2. Sign up/log in to [Vercel](https://vercel.com).
-3. Import the repository.
-4. Verify the framework preset is set to **Vite** and click **Deploy**.
-5. Vercel will build the frontend and serve it. The `vercel.json` rewrite configuration will automatically proxy all `/api` and `/socket.io` requests to your Render backend, resolving CORS errors automatically.
+2. Sign up/log in to [Vercel](https://vercel.com) with GitHub.
+3. Import the repository, ensure the framework preset is **Vite**, and click **Deploy**.
+4. Vercel will build the frontend. The `vercel.json` rewrite configuration will proxy all `/api` and `/socket.io` requests to your Render backend automatically.
+
 
