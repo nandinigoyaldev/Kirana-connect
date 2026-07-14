@@ -29,7 +29,7 @@ export default function Landing() {
       <h2 style={{ textAlign: 'center', marginBottom: '40px', fontWeight: 700 }}>Choose Your Role on the Platform</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px', marginBottom: '60px' }}>
         <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContext: 'center', padding: '12px', color: 'var(--color-primary)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', color: 'var(--color-primary)' }}>
             <ShoppingBag size={24} />
           </div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Customer</h3>
@@ -42,7 +42,7 @@ export default function Landing() {
         </div>
 
         <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContext: 'center', padding: '12px', color: 'var(--color-accent-dark)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', color: 'var(--color-accent-dark)' }}>
             <BarChart3 size={24} />
           </div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Shopkeeper</h3>
@@ -55,7 +55,7 @@ export default function Landing() {
         </div>
 
         <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContext: 'center', padding: '12px', color: 'var(--color-cta)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', color: 'var(--color-cta)' }}>
             <Truck size={24} />
           </div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Delivery Agent</h3>
@@ -68,7 +68,7 @@ export default function Landing() {
         </div>
 
         <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#fee2e2', display: 'flex', alignItems: 'center', justifyContext: 'center', padding: '12px', color: 'var(--color-error)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', color: 'var(--color-error)' }}>
             <ShieldCheck size={24} />
           </div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Admin Console</h3>

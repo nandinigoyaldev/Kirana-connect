@@ -5,7 +5,7 @@ import { Upload, FileText, CheckCircle2, ChevronRight, AlertCircle, RefreshCw } 
 
 export default function OCRUpload() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   
   // OCR processing states
   const [fileSelected, setFileSelected] = useState(false);
@@ -46,8 +46,18 @@ export default function OCRUpload() {
     setIsSyncing(true);
     
     try {
+      // Fetch current store inventory first
+      const storeId = user?.storeId || '60d5ec49867c293444747b11';
+      const invRes = await fetch(`/api/inventory/store/${storeId}`);
+      const invData = await invRes.json();
+      const storeInventory = invData.inventory || [];
+
       // Sync each item to store inventory
       for (const item of ocrResult.items) {
+        const existingItem = storeInventory.find(i => (i.productId._id === item.productId || i.productId === item.productId));
+        const prevStock = existingItem ? existingItem.stock : 0;
+        const newStock = prevStock + item.quantity;
+
         await fetch('/api/inventory/update', {
           method: 'PUT',
           headers: { 
@@ -57,7 +67,7 @@ export default function OCRUpload() {
           body: JSON.stringify({
             productId: item.productId,
             price: item.price,
-            stock: item.quantity,
+            stock: newStock,
             isAvailable: true
           })
         });
@@ -161,7 +171,7 @@ export default function OCRUpload() {
             {syncDone ? (
               <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '14px', borderRadius: '10px', display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
                 <CheckCircle2 size={20} />
-                <span>Succesfully imported OCR items to store inventory! Redirection to stock page.</span>
+                <span>Successfully imported OCR items to store inventory! Redirection to stock page.</span>
               </div>
             ) : (
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>

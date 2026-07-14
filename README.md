@@ -99,3 +99,38 @@ A floating control bar **"Switch Roles Demo"** is present on the bottom-right co
 - **Shopkeeper**: Pack orders, toggle product availability, scan invoice templates, log items by dictating spoken commands, and view analytics charts.
 - **Driver (Delivery)**: Accept routes, confirm driver pickups, verify deliveries using OTP code `1234`, and withdraw earnings.
 - **Admin**: Audit platform transactions, config pricing fees, and inspect security alerts (e.g., geofence deviations).
+
+---
+
+## 🌐 Production Deployment Guide (Free Tier)
+
+This project is configured to be deployed on **Vercel** (Frontend) and **Render** (Backend API + WebSockets) using a free database cluster:
+
+### 1. Database (MongoDB Atlas - Free Tier)
+1. Sign up/log in to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. Create a free shared cluster.
+3. Under **Database Access**, create a user credentials.
+4. Under **Network Access**, add IP address `0.0.0.0/0` to allow traffic.
+5. Copy your connection string (e.g. `mongodb+srv://...`).
+
+### 2. Backend (Render Web Service - Free Tier)
+1. Sign up/log in to [Render](https://render.com).
+2. Click **New +** > **Web Service**.
+3. Link your GitHub repository.
+4. Configure the web service:
+   - **Name**: `kirana-connect-backend`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+5. In **Environment Variables**, add:
+   - `MONGODB_URI`: *Your MongoDB Atlas connection string*
+   - `JWT_SECRET`: *Any secure random string*
+   - `PORT`: `5001`
+6. Deploy and copy your backend service URL (e.g. `https://kirana-connect-backend.onrender.com`).
+
+### 3. Frontend (Vercel SPA - Free Tier)
+1. In the project root, open [vercel.json](vercel.json) and replace the two occurrences of `https://your-backend-render-app.onrender.com` with your Render backend URL.
+2. Sign up/log in to [Vercel](https://vercel.com).
+3. Import the repository.
+4. Verify the framework preset is set to **Vite** and click **Deploy**.
+5. Vercel will build the frontend and serve it. The `vercel.json` rewrite configuration will automatically proxy all `/api` and `/socket.io` requests to your Render backend, resolving CORS errors automatically.
+

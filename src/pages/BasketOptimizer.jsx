@@ -100,7 +100,7 @@ export default function BasketOptimizer() {
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Store Name</div>
             <strong style={{ fontSize: '1.1rem' }}>{singleStoreOption ? singleStoreOption.storeName : 'None Available'}</strong>
           </div>
-          <div style={{ display: 'flex', justifyContext: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
             <span style={{ fontSize: '1.8rem', fontWeight: 800, color: isSplitBetter ? 'var(--color-text-muted)' : 'var(--color-primary)' }}>
               ₹{singleTotal}
             </span>
@@ -123,7 +123,7 @@ export default function BasketOptimizer() {
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Fulfillment Stores</div>
             <strong style={{ fontSize: '1.1rem' }}>{splitOrders ? splitOrders.map(o => o.storeName).join(' + ') : 'None'}</strong>
           </div>
-          <div style={{ display: 'flex', justifyContext: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
             <span style={{ fontSize: '1.8rem', fontWeight: 800, color: isSplitBetter ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
               ₹{splitTotal}
             </span>

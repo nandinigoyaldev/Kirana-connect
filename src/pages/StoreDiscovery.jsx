@@ -89,7 +89,7 @@ export default function StoreDiscovery() {
                   zIndex: 20
                 }}
               >
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.2)', display: 'flex', alignItems: 'center', justifyContext: 'center', animation: 'pulse-ring 2s infinite' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(37, 99, 235, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse-ring 2s infinite' }}>
                   <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: 'var(--color-cta)', border: '2px solid white' }}></div>
                 </div>
                 <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--color-text-main)', color: 'white', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', fontWeight: 600 }}>

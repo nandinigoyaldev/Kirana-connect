@@ -13,7 +13,7 @@ export default function OrderTracking() {
 
   useEffect(() => {
     // Connect to WebSocket server
-    const s = io(window.location.origin || 'http://localhost:5000');
+    const s = io(window.location.origin || 'http://localhost:5001');
     setSocket(s);
 
     if (user) {
@@ -143,7 +143,7 @@ export default function OrderTracking() {
           </div>
 
           {/* Stepper indicator bar */}
-          <div style={{ display: 'flex', justifyContext: 'space-between', position: 'relative', overflowX: 'auto', padding: '10px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', overflowX: 'auto', padding: '10px 0' }}>
             {stepsList.map((step, idx) => {
               const stepsMapping = ['pending', 'accepted', 'prepared', 'picked_up', 'delivered'];
               const currentStepIndex = stepsMapping.indexOf(order.status);
@@ -239,7 +239,7 @@ export default function OrderTracking() {
               const pos = getMapCoordinates(driverLocation.lat, driverLocation.lng);
               return (
                 <div style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', zIndex: 20 }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContext: 'center', boxShadow: 'var(--shadow-lg)', border: '2px solid var(--color-accent-dark)' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-lg)', border: '2px solid var(--color-accent-dark)' }}>
                     🛵
                   </div>
                   <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--color-text-main)', color: 'white', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', fontWeight: 700, marginBottom: '4px' }}>

@@ -8,6 +8,7 @@ export default function DeliveryDashboard() {
   const { fetchActiveOrders } = useCart();
   const [orders, setOrders] = useState([]);
   const [wallet, setWallet] = useState(null);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showOtpModal, setShowOtpModal] = useState(null); // holds orderId
   const [otpCode, setOtpCode] = useState('');
@@ -35,6 +36,10 @@ export default function DeliveryDashboard() {
       });
       const walData = await walRes.json();
       setWallet(walData.wallet);
+
+      const storeRes = await fetch('/api/stores');
+      const storeData = await storeRes.json();
+      setStores(storeData.stores || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -299,7 +304,12 @@ export default function DeliveryDashboard() {
                     </div>
 
                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                      <div>Fulfillment center: <strong>Kumar Kirana Store</strong></div>
+                      <div>Fulfillment center: <strong>{
+                        Array.from(new Set(o.items.map(item => {
+                          const store = stores.find(s => s._id === item.storeId);
+                          return store ? store.name : 'Unknown Store';
+                        }))).join(', ') || 'Kumar Kirana Store'
+                      }</strong></div>
                       <div>Delivery address: <strong>A-404, Maple Heights, Gurgaon</strong></div>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center', color: 'var(--color-primary)', fontWeight: 600, marginTop: '4px' }}>
                         <Navigation size={12} /> Delivery Earning: ₹{o.deliveryFee} (Held in Escrow)
@@ -338,7 +348,12 @@ export default function DeliveryDashboard() {
                     <div>
                       <strong style={{ fontSize: '0.85rem' }}>Order #{o._id.substring(0,8)}</strong>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                        Route: Kumar Kirana ➔ Sector 45
+                        Route: {
+                          Array.from(new Set(o.items.map(item => {
+                            const store = stores.find(s => s._id === item.storeId);
+                            return store ? store.name.replace(" Kirana Store", "").replace(" Provision Store", "").replace(" Super Store", "") : 'Store';
+                          }))).join(' + ') || 'Kumar Kirana'
+                        } ➔ Sector 45
                       </div>
                       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginTop: '2px' }}>
                         Fee: ₹{o.deliveryFee}

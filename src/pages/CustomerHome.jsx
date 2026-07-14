@@ -52,13 +52,54 @@ export default function CustomerHome() {
     }
   };
 
-  // Simulated Voice Search
+  // Voice Search using Web Speech API with simulation fallback
   const handleVoiceSearch = () => {
     if (isListening) return;
-    setIsListening(true);
-    setVoiceToast("Listening for item names...");
     
-    // Simulate spoken text interpretation
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = 'en-IN';
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => {
+        setIsListening(true);
+        setVoiceToast("Listening for product names...");
+      };
+      
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+        runSimulatedVoiceSearch();
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognition.onresult = (event) => {
+        const speechToText = event.results[0][0].transcript;
+        // Strip trailing punctuation
+        const query = speechToText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+        setSearchQuery(query);
+        setVoiceToast(`Search set to: "${query}"`);
+        setTimeout(() => {
+          setIsListening(false);
+          setVoiceToast('');
+        }, 1500);
+      };
+      
+      recognition.start();
+    } else {
+      runSimulatedVoiceSearch();
+    }
+  };
+
+  const runSimulatedVoiceSearch = () => {
+    setIsListening(true);
+    setVoiceToast("Listening for item names (simulated)...");
+    
     setTimeout(() => {
       const phrases = ["Amul Milk", "Fresh Eggs", "Britannia Bread", "Chakki Atta"];
       const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];

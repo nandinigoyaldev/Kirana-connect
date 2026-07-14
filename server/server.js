@@ -128,7 +128,7 @@ app.get('/api/auth/profile', authenticateToken, (req, res) => {
 });
 
 // Demo switch role helper
-app.post('/api/auth/demo-switch', authenticateToken, async (req, res) => {
+app.post('/api/auth/demo-switch', async (req, res) => {
   const { role } = req.body;
   try {
     // Find first seeded user matching role
@@ -461,7 +461,7 @@ app.put('/api/orders/:orderId/status', authenticateToken, async (req, res) => {
     // If shopkeeper updates a single item status
     if (itemId && itemStatus) {
       const updatedItems = order.items.map(item => 
-        item.productId === itemId ? { ...item, status: itemStatus } : item
+        String(item.productId) === String(itemId) ? { ...item, status: itemStatus } : item
       );
       updateData.items = updatedItems;
 

@@ -5,7 +5,7 @@ import { Mic, MicOff, Volume2, Sparkles, CheckCircle2, ChevronRight, CornerDownR
 
 export default function VoiceInventory() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   
   // Voice states
   const [isRecording, setIsRecording] = useState(false);
@@ -22,19 +22,52 @@ export default function VoiceInventory() {
   ];
 
   const handleStartRecording = () => {
-    setIsRecording(true);
     setNlpResult(null);
-    setTranscript('Listening to spoken stock updates...');
     setSyncDone(false);
 
-    // Simulate listening process, then auto-stop after 3 seconds
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = 'en-IN';
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+        setTranscript('Listening for stock commands...');
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error);
+        setIsRecording(false);
+        runSimulatedVoiceCommand();
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognition.onresult = (event) => {
+        const speechToText = event.results[0][0].transcript;
+        setTranscript(speechToText);
+        handleProcessVoiceCommand(speechToText);
+      };
+
+      recognition.start();
+    } else {
+      runSimulatedVoiceCommand();
+    }
+  };
+
+  const runSimulatedVoiceCommand = () => {
+    setIsRecording(true);
+    setTranscript('Listening to spoken stock updates (simulated)...');
     setTimeout(() => {
-      // Pick a random command to pretend we parsed
       const randomCommand = sampleCommands[Math.floor(Math.random() * sampleCommands.length)];
       setTranscript(randomCommand);
       setIsRecording(false);
       handleProcessVoiceCommand(randomCommand);
-    }, 3000);
+    }, 2500);
   };
 
   const handleProcessVoiceCommand = async (spokenText) => {
@@ -64,7 +97,8 @@ export default function VoiceInventory() {
     setIsProcessing(true);
     try {
       // Fetch current stock from inventory
-      const invRes = await fetch(`/api/inventory/store/${nlpResult.product.storeId || '60d5ec49867c293444747b11'}`);
+      const storeId = user?.storeId || '60d5ec49867c293444747b11';
+      const invRes = await fetch(`/api/inventory/store/${storeId}`);
       const invData = await invRes.json();
       const currentItem = invData.inventory.find(i => i.productId._id === nlpResult.product._id);
       
@@ -101,7 +135,7 @@ export default function VoiceInventory() {
       
       {/* Left panel: Mic Dictator */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px' }}>
-        <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContext: 'center', padding: '12px', color: 'var(--color-primary)', marginBottom: '16px' }}>
+        <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', color: 'var(--color-primary)', marginBottom: '16px' }}>
           <Volume2 size={24} />
         </div>
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Multilingual Voice Updates</h3>
