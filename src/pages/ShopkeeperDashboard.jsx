@@ -13,45 +13,153 @@ export default function ShopkeeperDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [coopRequests, setCoopRequests] = useState([]);
   const [products, setProducts] = useState([]);
+  const [debtors, setDebtors] = useState([]);
+  const [shoppersCount, setShoppersCount] = useState(4);
   const [showCoopModal, setShowCoopModal] = useState(false);
   const [coopForm, setCoopForm] = useState({ productId: '', quantity: 10 });
   const [loading, setLoading] = useState(true);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [selectedDebtor, setSelectedDebtor] = useState(null);
+
+  // Stock Swap states
+  const [swaps, setSwaps] = useState([]);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapForm, setSwapForm] = useState({
+    toStoreId: '',
+    offerItem: { name: 'Amul Gold Milk (1L)', qty: 10 },
+    demandItem: { name: 'Britannia Premium Bread', qty: 5 }
+  });
 
   useEffect(() => {
     fetchDashboardData();
+    const interval = setInterval(() => {
+      setShoppersCount(prev => Math.max(2, Math.min(8, prev + (Math.random() > 0.5 ? 1 : -1))));
+    }, 4000);
+    return () => clearInterval(interval);
   }, [activeOrders]);
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch shopkeeper orders
       const ordRes = await fetch('/api/orders/shopkeeper', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const ordData = await ordRes.json();
       setOrders(ordData.orders || []);
 
-      // Fetch analytics
       const analRes = await fetch('/api/analytics/shopkeeper', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const analData = await analRes.json();
       setAnalytics(analData);
 
-      // Fetch co-op requests
       const coopRes = await fetch('/api/coop/requests', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const coopData = await coopRes.json();
       setCoopRequests(coopData.requests || []);
 
-      // Fetch global products for form
       const prodRes = await fetch('/api/products');
       const prodData = await prodRes.json();
       setProducts(prodData.products || []);
+
+      // Fetch swaps
+      const swapRes = await fetch('/api/inventory/swap', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (swapRes.ok) {
+        const swapData = await swapRes.json();
+        setSwaps(swapData);
+      }
+
+      // Fetch debtors
+      const khataRes = await fetch('/api/khata/merchant', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (khataRes.ok) {
+        const khataData = await khataRes.json();
+        setDebtors(khataData);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendReminder = async (customerId) => {
+    try {
+      const res = await fetch('/api/khata/remind', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ customerId })
+      });
+      const data = await res.json();
+      alert(data.message || 'Udhaar reminder alert sent.');
+    } catch (err) {
+      alert('Failed to send reminder alert.');
+    }
+  };
+
+  const handleRecordPayment = async (customerId, amount) => {
+    if (!amount) return;
+    try {
+      const res = await fetch('/api/khata/pay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ customerId, amount })
+      });
+      const data = await res.json();
+      alert(data.message || 'Payment recorded.');
+      setPaymentAmount('');
+      setSelectedDebtor(null);
+      fetchDashboardData();
+    } catch (err) {
+      alert('Failed to record repayment.');
+    }
+  };
+
+  const handleCreateSwap = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/inventory/swap/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(swapForm)
+      });
+      if (res.ok) {
+        setShowSwapModal(false);
+        fetchDashboardData();
+        alert("Stock Swap proposed to target store!");
+      }
+    } catch (err) {
+      alert("Failed to propose swap.");
+    }
+  };
+
+  const handleRespondSwap = async (swapId, action) => {
+    try {
+      const res = await fetch(`/api/inventory/swap/${swapId}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action })
+      });
+      const data = await res.json();
+      alert(data.message || "Swap response recorded.");
+      fetchDashboardData();
+    } catch (err) {
+      alert("Error responding to swap offer.");
     }
   };
 
@@ -183,7 +291,7 @@ export default function ShopkeeperDashboard() {
       {/* Metrics Summary Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
         <div className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-primary)', padding: '12px', borderRadius: '12px' }}>
+          <div style={{ backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '12px', borderRadius: '12px' }}>
             <TrendingUp size={24} />
           </div>
           <div>
@@ -193,7 +301,7 @@ export default function ShopkeeperDashboard() {
         </div>
 
         <div className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)', color: 'var(--color-cta)', padding: '12px', borderRadius: '12px' }}>
+          <div style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)', color: 'var(--color-primary)', padding: '12px', borderRadius: '12px' }}>
             <ShoppingBag size={24} />
           </div>
           <div>
@@ -209,6 +317,18 @@ export default function ShopkeeperDashboard() {
           <div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Low Stock Alerts</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{criticalItems.length}</div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ backgroundColor: 'rgba(249, 115, 22, 0.15)', color: 'var(--color-secondary)', padding: '12px', borderRadius: '12px' }}>
+            <Activity size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Outstanding Udhaar Credit</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-secondary)' }}>
+              ₹{debtors.reduce((sum, d) => sum + (d.khataDebt || 0), 0)}
+            </div>
           </div>
         </div>
       </div>
@@ -403,6 +523,220 @@ export default function ShopkeeperDashboard() {
 
         </div>
 
+      </div>
+
+      {/* NEW: Digital Udhaar Ledger & Live Traffic Analytics Grid */}
+      <div className="grid-2" style={{ marginTop: '30px' }}>
+        
+        {/* Udhaar Credit Book */}
+        <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Digital Khata Book (Udhaar Ledger)</h3>
+            <span className="badge" style={{ backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 700 }}>
+              {debtors.length} active debtors
+            </span>
+          </div>
+          
+          {debtors.length === 0 ? (
+            <p className="text-sm text-muted" style={{ margin: 0, textAlign: 'center', padding: '20px 0' }}>
+              No outstanding customer credits. Nice work!
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {debtors.map(debtor => (
+                <div key={debtor._id} style={{ border: '1px solid var(--color-border)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--color-bg)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong style={{ fontSize: '0.9rem', color: 'var(--color-text-main)' }}>{debtor.name}</strong>
+                        <span className="badge" style={{
+                          backgroundColor: debtor.khataScore === 'A+' ? 'rgba(13, 148, 136, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: debtor.khataScore === 'A+' ? 'var(--color-success)' : 'var(--color-warning)',
+                          fontSize: '0.6rem',
+                          padding: '2px 6px'
+                        }}>
+                          Score: {debtor.khataScore || 'A+'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>{debtor.phone || 'No phone registered'}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block' }}>Outstanding Balance</span>
+                      <strong style={{ fontSize: '1rem', color: 'var(--color-error)' }}>₹{debtor.khataDebt}</strong>
+                    </div>
+                  </div>
+
+                  {selectedDebtor === debtor._id ? (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#FFFFFF', padding: '8px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                      <input
+                        type="number"
+                        placeholder="Amt"
+                        className="form-control"
+                        style={{ padding: '6px', fontSize: '0.8rem', flex: 1 }}
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                      />
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleRecordPayment(debtor._id, paymentAmount)}
+                        style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                      >
+                        Settle
+                      </button>
+                      <button 
+                        className="btn"
+                        onClick={() => setSelectedDebtor(null)}
+                        style={{ fontSize: '0.75rem', padding: '6px', border: '1px solid var(--color-border)' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => handleSendReminder(debtor._id)}
+                        style={{ fontSize: '0.75rem', padding: '6px' }}
+                      >
+                        Send WhatsApp Alert
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => { setSelectedDebtor(debtor._id); setPaymentAmount(''); }}
+                        style={{ fontSize: '0.75rem', padding: '6px' }}
+                      >
+                        Record Repayment
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Live Traffic Analytics */}
+        <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Live Catalog Foot Traffic</h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
+              Real-time customer views on your store listings.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: 'var(--color-primary-light)', padding: '16px', borderRadius: '12px' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-accent)', animation: 'pulse-ring 1.5s infinite' }}></div>
+            <div>
+              <strong style={{ fontSize: '1.5rem', color: 'var(--color-primary)', display: 'block', lineHeight: 1 }}>{shoppersCount}</strong>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Active Shoppers Viewing Now</span>
+            </div>
+          </div>
+
+          {/* SVG Animated Sparkline Chart */}
+          <div style={{ flex: 1, minHeight: '120px', display: 'flex', alignItems: 'flex-end', borderBottom: '2px solid var(--color-border)', position: 'relative' }}>
+            <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100px', overflow: 'visible' }}>
+              <defs>
+                <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0 25 C 20 18, 30 22, 50 10 C 70 20, 80 8, 100 15 L 100 30 L 0 30 Z"
+                fill="url(#grad)"
+              />
+              <path
+                d="M 0 25 C 20 18, 30 22, 50 10 C 70 20, 80 8, 100 15"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              {/* Dynamic point on sparkline */}
+              <circle cx="100" cy="15" r="3" fill="var(--color-secondary)" />
+            </svg>
+            <div style={{ position: 'absolute', left: 0, top: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>8 AM</div>
+            <div style={{ position: 'absolute', right: 0, top: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Now</div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Stock Swap Agreements Panel */}
+      <div className="card" style={{ marginTop: '30px', padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Stock Swap Exchange (B2B Trade Agreements)</h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
+              Exchange surplus items with other local kiranas to fulfill stock imbalances without spending cash.
+            </p>
+          </div>
+          <button 
+            className="btn btn-outline" 
+            onClick={() => setShowSwapModal(true)}
+            style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            Propose Stock Swap
+          </button>
+        </div>
+
+        {swaps.length === 0 ? (
+          <p className="text-sm text-muted" style={{ textAlign: 'center', padding: '24px 0', margin: 0 }}>
+            No swap offers active at this time.
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {swaps.map(swap => {
+              const isOutgoing = swap.fromStoreId === user.storeId;
+              return (
+                <div key={swap._id} style={{ border: '1px solid var(--color-border)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--color-bg)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-secondary)', fontWeight: 800, textTransform: 'uppercase' }}>
+                      {isOutgoing ? `PROPOSED TO: ${swap.toStoreName}` : `RECEIVED FROM: ${swap.fromStoreName}`}
+                    </span>
+                    <span className="badge" style={{ 
+                      fontSize: '0.65rem', 
+                      backgroundColor: swap.status === 'pending' ? '#FEF3C7' : (swap.status === 'approved' ? '#D1FAE5' : '#FEE2E2'),
+                      color: swap.status === 'pending' ? '#D97706' : (swap.status === 'approved' ? '#059669' : '#DC2626')
+                    }}>
+                      {swap.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.8rem' }}>
+                    <div style={{ borderRight: '1px solid var(--color-border)', paddingRight: '8px' }}>
+                      <span style={{ color: 'var(--color-text-muted)', display: 'block', fontSize: '0.65rem' }}>OFFERING:</span>
+                      <strong>{swap.offerItem.qty}x {swap.offerItem.name}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--color-text-muted)', display: 'block', fontSize: '0.65rem' }}>DEMANDING:</span>
+                      <strong>{swap.demandItem.qty}x {swap.demandItem.name}</strong>
+                    </div>
+                  </div>
+
+                  {swap.status === 'pending' && !isOutgoing && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={() => handleRespondSwap(swap._id, 'approve')}
+                        style={{ flex: 1, fontSize: '0.75rem', padding: '6px' }}
+                      >
+                        Accept Swap
+                      </button>
+                      <button 
+                        className="btn btn-outline" 
+                        onClick={() => handleRespondSwap(swap._id, 'reject')}
+                        style={{ flex: 1, fontSize: '0.75rem', padding: '6px' }}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* CO-OP BORROW REQUEST MODAL */}

@@ -304,14 +304,34 @@ export default function DeliveryDashboard() {
                     </div>
 
                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                      <div>Fulfillment center: <strong>{
+                      <div>Fulfillment centers: <strong>{
                         Array.from(new Set(o.items.map(item => {
                           const store = stores.find(s => s._id === item.storeId);
                           return store ? store.name : 'Unknown Store';
                         }))).join(', ') || 'Kumar Kirana Store'
                       }</strong></div>
-                      <div>Delivery address: <strong>A-404, Maple Heights, Gurgaon</strong></div>
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', color: 'var(--color-primary)', fontWeight: 600, marginTop: '4px' }}>
+                      
+                      {/* NEW: Multi-store TSP Route Optimizer */}
+                      <div style={{ marginTop: '8px', padding: '10px 14px', backgroundColor: 'var(--color-bg)', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', fontWeight: 700, display: 'block', marginBottom: '4px', textTransform: 'uppercase' }}>
+                          ⚡ AI ROUTE SOLVER SEQUENCE (TSP OPTIMIZED):
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: 'var(--color-primary)' }}>①</span> Hub ➔ Pick up from: <strong>{stores.find(s => s._id === o.items[0]?.storeId)?.name || 'Kumar Kirana Store'}</strong>
+                          </div>
+                          {Array.from(new Set(o.items.map(i => i.storeId))).length > 1 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ color: 'var(--color-primary)' }}>②</span> Pick up from: <strong>{stores.find(s => s._id === o.items.find(i => i.storeId !== o.items[0]?.storeId)?.storeId)?.name || 'Gupta Provision Store'}</strong>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: 'var(--color-accent-dark)' }}>③</span> Final Dropoff: <strong>A-404, Maple Heights, Gurgaon Sector 4</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', color: 'var(--color-primary)', fontWeight: 600, marginTop: '8px' }}>
                         <Navigation size={12} /> Delivery Earning: ₹{o.deliveryFee} (Held in Escrow)
                       </div>
                     </div>

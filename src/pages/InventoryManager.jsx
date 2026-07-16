@@ -9,6 +9,13 @@ export default function InventoryManager() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Offline-first sync states
+  const [isOffline, setIsOffline] = useState(false);
+  const [offlineQueue, setOfflineQueue] = useState(() => {
+    const saved = localStorage.getItem('inventory_offline_queue');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Scanning simulator states
   const [isScanning, setIsScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState('');
@@ -77,6 +84,29 @@ export default function InventoryManager() {
 
   const handleSaveEdit = async () => {
     setIsSaving(true);
+    if (isOffline) {
+      const updatedQueue = [...offlineQueue, {
+        productId: editingItem.productId._id || editingItem.productId,
+        price: Number(editPrice),
+        stock: Number(editStock),
+        isAvailable: editAvailable,
+        name: editingItem.productId.name || 'Product Update',
+        timestamp: new Date().toISOString()
+      }];
+      setOfflineQueue(updatedQueue);
+      localStorage.setItem('inventory_offline_queue', JSON.stringify(updatedQueue));
+      
+      const nextInv = storeInventory.map(item => 
+        (item._id === editingItem._id) 
+          ? { ...item, price: Number(editPrice), stock: Number(editStock), isAvailable: editAvailable } 
+          : item
+      );
+      setStoreInventory(nextInv);
+      setEditingItem(null);
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/inventory/update', {
         method: 'PUT',
@@ -99,6 +129,79 @@ export default function InventoryManager() {
       console.error(err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePushOfflineUpdates = async () => {
+    if (offlineQueue.length === 0) return;
+    setLoading(true);
+    try {
+      for (const item of offlineQueue) {
+        await fetch('/api/inventory/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            productId: item.productId,
+            price: item.price,
+            stock: item.stock,
+            isAvailable: item.isAvailable
+          })
+        });
+      }
+      alert("Successfully synced all local cached inventory changes back to cloud!");
+      setOfflineQueue([]);
+      localStorage.removeItem('inventory_offline_queue');
+      loadInventoryData();
+    } catch (err) {
+      alert("Sync failed. Check cloud link connection.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOneClickReorder = async (invItem) => {
+    try {
+      const supRes = await fetch('/api/suppliers', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const supData = await supRes.json();
+      const targetSupplier = supData.suppliers?.[0];
+      if (!targetSupplier) {
+        alert("Please register a Wholesaler/Supplier first!");
+        return;
+      }
+      
+      const orderNumber = `PO-AUTO-${Math.floor(1000 + Math.random() * 9000)}`;
+      const res = await fetch('/api/purchase-orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          supplierId: targetSupplier._id,
+          orderNumber,
+          expectedDeliveryDate: new Date(Date.now() + 172800000).toISOString().split('T')[0],
+          items: [{
+            productId: invItem.productId._id || invItem.productId,
+            quantityOrdered: 50,
+            buyingPrice: Math.round(invItem.price * 0.8),
+            sellingPrice: invItem.price
+          }],
+          notes: `Automated reorder draft triggered by low stock alert (under 15 units)`
+        })
+      });
+      if (res.ok) {
+        alert(`Draft purchase order #${orderNumber} created successfully!`);
+      } else {
+        alert("Failed to auto-draft purchase order.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error drafting purchase order.");
     }
   };
 
@@ -151,6 +254,37 @@ export default function InventoryManager() {
         <button className="btn btn-primary" onClick={handleStartScan} style={{ gap: '6px' }}>
           <Scan size={16} /> Barcode Scanner Simulator
         </button>
+      </div>
+
+      {/* Offline Sync Controls banner */}
+      <div className="card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isOffline ? 'rgba(239, 68, 68, 0.05)' : 'var(--color-primary-light)', border: '1px solid var(--color-border)', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isOffline ? 'var(--color-error)' : 'var(--color-success)' }}></div>
+          <div>
+            <strong style={{ fontSize: '0.85rem' }}>Connection Link: {isOffline ? 'Offline (Cached Mode)' : 'Online (Direct Cloud Synced)'}</strong>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+              {isOffline ? `Pending changes saved in local cache: ${offlineQueue.length} items` : 'Database is actively synchronised.'}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {isOffline && offlineQueue.length > 0 && (
+            <button className="btn btn-primary" onClick={handlePushOfflineUpdates} style={{ fontSize: '0.75rem', padding: '6px 12px' }}>
+              Push Cached Updates ({offlineQueue.length})
+            </button>
+          )}
+          <button 
+            className="btn btn-outline" 
+            onClick={() => {
+              setIsOffline(!isOffline);
+              if (!isOffline) alert("Simulating network disconnect. Inventory changes will cache locally in your browser.");
+              else alert("Network link restored!");
+            }}
+            style={{ fontSize: '0.75rem', padding: '6px 12px', borderColor: isOffline ? 'var(--color-success)' : 'var(--color-error)', color: isOffline ? 'var(--color-success)' : 'var(--color-error)' }}
+          >
+            {isOffline ? 'Go Online' : 'Simulate Offline'}
+          </button>
+        </div>
       </div>
 
       {/* Barcode scanner overlay */}
@@ -288,10 +422,15 @@ export default function InventoryManager() {
                     <td><span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{item.productId.category}</span></td>
                     <td><strong>₹{item.price}</strong></td>
                     <td>
-                      {item.stock <= 5 ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-error)', fontWeight: 600, fontSize: '0.8rem' }}>
-                          <AlertCircle size={14} /> Low: {item.stock} left
-                        </span>
+                      {item.stock <= 15 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-error)', fontWeight: 700, fontSize: '0.8rem' }}>
+                            <AlertCircle size={14} /> Low: {item.stock} left
+                          </span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--color-secondary)', fontWeight: 700 }}>
+                            ⚠️ Runout predicted (2d)
+                          </span>
+                        </div>
                       ) : (
                         <span style={{ fontSize: '0.8rem', color: 'var(--color-text-main)' }}>{item.stock} in stock</span>
                       )}
@@ -304,7 +443,16 @@ export default function InventoryManager() {
                         {item.isAvailable ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
                       </button>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      {item.stock <= 15 && (
+                        <button 
+                          className="btn btn-secondary" 
+                          onClick={() => handleOneClickReorder(item)} 
+                          style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-primary)' }}
+                        >
+                          Auto-Reorder
+                        </button>
+                      )}
                       <button className="btn btn-outline" onClick={() => handleEditClick(item)} style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px' }}>
                         <Edit size={12} /> Adjust
                       </button>

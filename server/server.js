@@ -539,9 +539,22 @@ app.post('/api/orders/create', authenticateToken, async (req, res) => {
       }
     }
 
+    const isPeakHour = new Date().getHours() >= 18 || new Date().getHours() < 9;
+    const surgeFactor = isPeakHour ? 1.25 : 1.0;
     const deliveryFee = items.length > 0 ? 30 : 0;
     const taxes = Math.round(subtotal * 0.05);
-    const total = subtotal + deliveryFee + taxes;
+    const rawTotal = subtotal + deliveryFee + taxes;
+    const total = Math.round(rawTotal * surgeFactor);
+
+    // Handle Digital Khata payment balance adjustments
+    if (paymentMethod === 'khata') {
+      const customer = await db.users.findById(req.user._id || req.user.id);
+      if (customer) {
+        const newDebt = (customer.khataDebt || 0) + total;
+        const nextScore = newDebt > 400 ? 'B-' : 'A+';
+        await db.users.updateOne({ id: req.user._id || req.user.id }, { khataDebt: newDebt, khataScore: nextScore });
+      }
+    }
 
     // Create the order object
     const newOrder = await db.orders.create({
@@ -553,9 +566,21 @@ app.post('/api/orders/create', authenticateToken, async (req, res) => {
       total,
       status: 'pending',
       paymentMethod,
-      paymentStatus: paymentMethod === 'razorpay' ? 'paid' : 'pending',
+      paymentStatus: paymentMethod === 'razorpay' ? 'paid' : (paymentMethod === 'khata' ? 'khata_deferred' : 'pending'),
       shippingAddress: req.user.phone ? `Contact: ${req.user.phone}` : 'Hyperlocal Address',
-      isOptimized: isOptimized || false
+      isOptimized: isOptimized || false,
+      surgeModifier: surgeFactor
+    });
+
+    // Create a matching Escrow Ledger transaction
+    await db.escrowLedger.create({
+      orderId: newOrder._id,
+      orderNumber: newOrder.orderNumber || `ORD-${newOrder._id.substring(0,6)}`,
+      merchantId: items[0]?.storeId || null,
+      driverId: null,
+      amount: total,
+      status: 'held',
+      disputeReason: ''
     });
 
     // Notify shopkeepers and delivery partners
@@ -603,6 +628,9 @@ app.put('/api/orders/:orderId/status', authenticateToken, async (req, res) => {
       if (status === 'accepted' && req.user.role === 'delivery') {
         updateData.deliveryPartnerId = req.user._id || req.user.id;
         
+        // Update Escrow record with Driver assignment
+        await db.escrowLedger.updateOne({ orderId: orderId }, { driverId: req.user._id || req.user.id });
+
         // Hold order fee in Escrow
         const wallet = await db.wallets.findOne({ userId: req.user._id || req.user.id });
         if (wallet) {
@@ -622,6 +650,10 @@ app.put('/api/orders/:orderId/status', authenticateToken, async (req, res) => {
         }
 
         updateData.paymentStatus = 'paid';
+        
+        // Release Escrow record to disbursed status
+        await db.escrowLedger.updateOne({ orderId: orderId }, { status: 'disbursed' });
+
         if (order.deliveryPartnerId) {
           const wallet = await db.wallets.findOne({ userId: order.deliveryPartnerId });
           if (wallet) {
@@ -1386,6 +1418,370 @@ app.post('/api/coop/request/:id/respond', authenticateToken, async (req, res) =>
     io.emit('coop_request_updated', refreshed);
 
     res.json({ message: `Co-op request ${status} successfully`, request: refreshed });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- DIGITAL CREDIT LEDGER (KHATA BOOK) ENDPOINTS ---
+
+app.get('/api/khata/merchant', authenticateToken, async (req, res) => {
+  try {
+    const customers = await db.users.find({ role: 'customer' });
+    const debtors = customers.filter(c => c.khataDebt > 0);
+    res.json(debtors);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/khata/remind', authenticateToken, async (req, res) => {
+  const { customerId } = req.body;
+  try {
+    const customer = await db.users.findById(customerId);
+    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    console.log(`✉️ Simulated WhatsApp Udhaar reminder sent to ${customer.name} (${customer.phone}): Outstanding debt is ₹${customer.khataDebt}`);
+    res.json({ message: `Simulated WhatsApp Udhaar reminder alert dispatched to ${customer.name}!` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/khata/pay', authenticateToken, async (req, res) => {
+  const { customerId, amount } = req.body;
+  try {
+    const customer = await db.users.findById(customerId);
+    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    const newDebt = Math.max(0, (customer.khataDebt || 0) - parseFloat(amount));
+    await db.users.updateOne({ id: customerId }, { khataDebt: newDebt });
+    res.json({ message: `Recorded repayment of ₹${amount}. New outstanding balance: ₹${newDebt}.`, khataDebt: newDebt });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- COOPERATIVE WHOLESALE BUYING POOLS ENDPOINTS ---
+
+app.get('/api/procurement/pools', authenticateToken, async (req, res) => {
+  try {
+    const pools = await db.coopPools.find({});
+    res.json(pools);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/procurement/pools/:id/join', authenticateToken, async (req, res) => {
+  const poolId = req.params.id;
+  const { quantity } = req.body;
+  const storeId = req.user.storeId || '60d5ec49867c293444747b12';
+  try {
+    const pool = await db.coopPools.findById(poolId);
+    if (!pool) return res.status(404).json({ message: 'Buying pool not found' });
+    
+    const joinedQty = parseFloat(quantity || 10);
+    const store = await db.stores.findById(storeId);
+    const storeName = store ? store.name : 'Sector 4 Merchant';
+    
+    const participants = pool.participants || [];
+    const existing = participants.find(p => p.storeId === storeId);
+    if (existing) {
+      existing.qty += joinedQty;
+    } else {
+      participants.push({ storeId, storeName, qty: joinedQty });
+    }
+
+    const newQty = (pool.currentQty || 0) + joinedQty;
+    let newStatus = pool.status || 'gathering';
+    
+    if (newQty >= pool.targetQty) {
+      newStatus = 'ordered';
+      const orderNumber = `PO-COOP-${Math.floor(1000 + Math.random() * 9000)}`;
+      await db.purchaseOrders.create({
+        supplierId: pool.supplierId,
+        orderNumber,
+        status: 'ordered',
+        subtotal: pool.price * newQty,
+        tax: (pool.price * newQty) * 0.05,
+        total: (pool.price * newQty) * 1.05,
+        paymentStatus: 'pending',
+        notes: `Cooperative wholesale bulk buy generated from pool: ${pool.name}`
+      });
+    }
+
+    await db.coopPools.updateOne({ _id: poolId }, {
+      currentQty: newQty,
+      status: newStatus,
+      participants
+    });
+
+    res.json({ message: `Joined pool successfully!`, pool: { ...pool, currentQty: newQty, status: newStatus, participants } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- ADMIN ESCROW AUDIT LEDGER ENDPOINTS ---
+
+app.get('/api/admin/escrow', authenticateToken, async (req, res) => {
+  try {
+    const ledger = await db.escrowLedger.find({});
+    res.json(ledger);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.put('/api/admin/escrow/:id/settle', authenticateToken, async (req, res) => {
+  const ledgerId = req.params.id;
+  const { action } = req.body; // 'disburse' or 'refund'
+  try {
+    const item = await db.escrowLedger.findOne({ id: ledgerId });
+    if (!item) return res.status(404).json({ message: 'Escrow audit item not found' });
+    
+    if (action === 'disburse') {
+      if (item.driverId) {
+        const wallet = await db.wallets.findOne({ userId: item.driverId });
+        if (wallet) {
+          const newBalance = wallet.balance + item.amount;
+          await db.wallets.updateOne({ userId: item.driverId }, { balance: newBalance });
+        }
+      }
+      await db.escrowLedger.updateOne({ id: ledgerId }, { status: 'disbursed' });
+      await db.orders.updateOne({ _id: item.orderId }, { paymentStatus: 'paid' });
+    } else if (action === 'refund') {
+      await db.escrowLedger.updateOne({ id: ledgerId }, { status: 'refunded' });
+      await db.orders.updateOne({ _id: item.orderId }, { status: 'cancelled', paymentStatus: 'refunded' });
+    }
+    res.json({ message: `Escrow item status updated to ${action}d successfully!` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- NEW HYPERLOCAL ADVANCED PORTFOLIO APIs ---
+
+// 1. Dynamic Surge Pricing API
+app.get('/api/pricing/surge', async (req, res) => {
+  const isPeakHour = new Date().getHours() >= 18 || new Date().getHours() < 9;
+  const surgeFactor = isPeakHour ? 1.25 : 1.0;
+  res.json({ 
+    surgeActive: isPeakHour,
+    surgeFactor,
+    reason: isPeakHour ? "Peak-Hour Grid Demand Surge (Sector 4)" : "Standard Rates Apply"
+  });
+});
+
+// 2. Roommate Shared Group Basket APIs
+app.post('/api/group-basket/create', authenticateToken, async (req, res) => {
+  const { creatorName } = req.body;
+  try {
+    const newBasket = await db.groupBaskets.create({
+      creatorName: creatorName || req.user.name,
+      items: [],
+      active: true
+    });
+    res.status(201).json(newBasket);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/api/group-basket/:id', async (req, res) => {
+  try {
+    const basket = await db.groupBaskets.findOne({ id: req.params.id });
+    if (!basket) return res.status(404).json({ message: 'Group basket not found' });
+    res.json(basket);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/group-basket/:id/add', authenticateToken, async (req, res) => {
+  const { productId, quantity } = req.body;
+  try {
+    const basket = await db.groupBaskets.findOne({ id: req.params.id });
+    if (!basket) return res.status(404).json({ message: 'Group basket not found' });
+
+    const prod = await db.products.findById(productId);
+    if (!prod) return res.status(404).json({ message: 'Product not found' });
+
+    const existingItemIdx = basket.items.findIndex(i => i.product._id === productId || i.product.id === productId);
+    let updatedItems = [...basket.items];
+
+    if (existingItemIdx > -1) {
+      updatedItems[existingItemIdx].quantity += Number(quantity);
+    } else {
+      updatedItems.push({
+        product: prod,
+        quantity: Number(quantity),
+        addedBy: req.user.name || 'Roommate'
+      });
+    }
+
+    await db.groupBaskets.updateOne({ id: req.params.id }, { items: updatedItems });
+    const updatedBasket = await db.groupBaskets.findOne({ id: req.params.id });
+    
+    io.emit('group_basket_synced', updatedBasket);
+    res.json(updatedBasket);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Merchant-to-Merchant Stock Swap Agreements
+app.get('/api/inventory/swap', authenticateToken, async (req, res) => {
+  try {
+    const offers = await db.swapOffers.find({});
+    const storeId = req.user.storeId;
+    const relevant = offers.filter(o => o.fromStoreId === storeId || o.toStoreId === storeId);
+    res.json(relevant);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/inventory/swap/create', authenticateToken, async (req, res) => {
+  const { toStoreId, offerItem, demandItem } = req.body;
+  try {
+    const stores = await db.stores.find({});
+    const fromStore = stores.find(s => s._id === req.user.storeId || s.id === req.user.storeId);
+    const toStore = stores.find(s => s._id === toStoreId || s.id === toStoreId);
+
+    if (!fromStore || !toStore) return res.status(404).json({ message: 'Store link not found' });
+
+    const newOffer = await db.swapOffers.create({
+      fromStoreId: fromStore._id || fromStore.id,
+      fromStoreName: fromStore.name,
+      toStoreId: toStore._id || toStore.id,
+      toStoreName: toStore.name,
+      offerItem,
+      demandItem,
+      status: 'pending'
+    });
+
+    res.status(201).json(newOffer);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/inventory/swap/:id/respond', authenticateToken, async (req, res) => {
+  const { action } = req.body;
+  try {
+    const offer = await db.swapOffers.findOne({ id: req.params.id });
+    if (!offer) return res.status(404).json({ message: 'Swap offer not found' });
+
+    if (action === 'reject') {
+      await db.swapOffers.updateOne({ id: req.params.id }, { status: 'rejected' });
+      return res.json({ message: 'Swap offer rejected.' });
+    }
+
+    const inventory = await db.inventory.find({});
+    const products = await db.products.find({});
+    const offerProd = products.find(p => p.name.toLowerCase().includes(offer.offerItem.name.toLowerCase()));
+    const demandProd = products.find(p => p.name.toLowerCase().includes(offer.demandItem.name.toLowerCase()));
+
+    if (offerProd && demandProd) {
+      const fromOfferInv = inventory.find(i => i.storeId === offer.fromStoreId && i.productId._id === offerProd._id);
+      if (fromOfferInv && fromOfferInv.stock < offer.offerItem.qty) {
+        return res.status(400).json({ message: 'Lender does not have enough stock left to execute trade.' });
+      }
+
+      if (fromOfferInv) {
+        await db.inventory.updateOne({ id: fromOfferInv._id }, { stock: Math.max(0, fromOfferInv.stock - offer.offerItem.qty) });
+      }
+
+      const toOfferInv = inventory.find(i => i.storeId === offer.toStoreId && i.productId._id === offerProd._id);
+      if (toOfferInv) {
+        await db.inventory.updateOne({ id: toOfferInv._id }, { stock: toOfferInv.stock + offer.offerItem.qty });
+      }
+
+      const toDemandInv = inventory.find(i => i.storeId === offer.toStoreId && i.productId._id === demandProd._id);
+      if (toDemandInv) {
+        await db.inventory.updateOne({ id: toDemandInv._id }, { stock: Math.max(0, toDemandInv.stock - offer.demandItem.qty) });
+      }
+
+      const fromDemandInv = inventory.find(i => i.storeId === offer.fromStoreId && i.productId._id === demandProd._id);
+      if (fromDemandInv) {
+        await db.inventory.updateOne({ id: fromDemandInv._id }, { stock: fromDemandInv.stock + offer.demandItem.qty });
+      }
+    }
+
+    await db.swapOffers.updateOne({ id: req.params.id }, { status: 'approved' });
+    res.json({ message: 'Stock swap trade executed and inventories balanced!' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. Driver Shifts Status API
+app.post('/api/driver/shift', authenticateToken, async (req, res) => {
+  const { active } = req.body;
+  try {
+    res.json({ 
+      shiftActive: active, 
+      status: active ? "Online - Active Gurgaon Grid" : "Offline",
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5. In-App Order Damage Dispute Claims
+app.post('/api/orders/:id/dispute', authenticateToken, async (req, res) => {
+  const { disputeReason } = req.body;
+  try {
+    await db.orders.updateOne({ _id: req.params.id }, { disputeStatus: 'active' });
+    await db.escrowLedger.updateOne({ orderId: req.params.id }, { disputeReason, status: 'disputed' });
+    res.json({ message: 'Dispute claim filed successfully. Held funds locked.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/api/admin/disputes', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+  try {
+    const disputedEscrows = await db.escrowLedger.find({ status: 'disputed' });
+    res.json(disputedEscrows);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/admin/escrow/:orderId/resolve', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+  const { action } = req.body;
+  try {
+    const item = await db.escrowLedger.findOne({ orderId: req.params.orderId });
+    if (!item) return res.status(404).json({ message: 'Dispute reference not found' });
+
+    if (action === 'disburse') {
+      if (item.driverId) {
+        const wallet = await db.wallets.findOne({ userId: item.driverId });
+        if (wallet) {
+          await db.wallets.updateOne({ userId: item.driverId }, { balance: wallet.balance + item.amount });
+        }
+      }
+      await db.escrowLedger.updateOne({ orderId: req.params.orderId }, { status: 'disbursed' });
+      await db.orders.updateOne({ _id: req.params.orderId }, { disputeStatus: 'resolved_payout', paymentStatus: 'paid' });
+    } else if (action === 'refund') {
+      await db.escrowLedger.updateOne({ orderId: req.params.orderId }, { status: 'refunded' });
+      await db.orders.updateOne({ _id: req.params.orderId }, { disputeStatus: 'resolved_refund', status: 'cancelled', paymentStatus: 'refunded' });
+      
+      const order = await db.orders.findById(req.params.orderId);
+      if (order && order.paymentMethod === 'khata') {
+        const customer = await db.users.findById(order.customerId);
+        if (customer) {
+          const debtRestored = Math.max(0, customer.khataDebt - order.total);
+          const nextScore = debtRestored > 400 ? 'B-' : 'A+';
+          await db.users.updateOne({ id: order.customerId }, { khataDebt: debtRestored, khataScore: nextScore });
+        }
+      }
+    }
+    res.json({ message: `Disputed escrow resolved successfully to ${action}!` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

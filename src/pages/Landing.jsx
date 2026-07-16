@@ -1,299 +1,301 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, ShieldCheck, Truck, BarChart3, ChevronRight, Sparkles, Mic, FileText, ArrowRight, CheckCircle2, TrendingDown, Layers, Landmark } from 'lucide-react';
+import { ShoppingBag, Truck, BarChart3, ChevronRight, Sparkles, Mic, FileText, CheckCircle2, UserCheck, ShieldCheck, MapPin, Zap, ArrowRightLeft } from 'lucide-react';
 
 export default function Landing() {
   const navigate = useNavigate();
-  const [activeScenario, setActiveScenario] = useState('basket');
-  
-  // Interactive Mockup State (Animates between Single Store and Split Store checkout states)
-  const [mockupState, setMockupState] = useState('single');
+  const [activeTab, setActiveTab] = useState('splitter');
+  const [animatedIndex, setAnimatedIndex] = useState(0);
 
+  // Auto-rotate the active diagnostic log inside the mockup
   useEffect(() => {
     const interval = setInterval(() => {
-      setMockupState(prev => (prev === 'single' ? 'split' : 'single'));
-    }, 4000);
+      setAnimatedIndex(prev => (prev === 0 ? 1 : 0));
+    }, 3500);
     return () => clearInterval(interval);
   }, []);
 
-  const scenarios = {
-    basket: {
-      title: "AI Heuristic Cost Router & Splitter",
-      description: "When a customer searches for multiple items (e.g. Milk + Bread + Eggs), our heuristics analyze local store inventories, pricing, and distance fees. It computes if buying separately at different stores beats a single checkout, accounting for delivery costs.",
-      impact: "Reduces user cart checkout costs by 12% on average while distributing sales dynamically to local merchants.",
-      badge: "Heuristic Logistics Optimization"
+  const tourFeatures = {
+    splitter: {
+      title: "Smart Basket Cost Router",
+      subtitle: "Heuristic Checkout Splitter Engine",
+      badge: "AI Optimization",
+      desc: "Kirana Connect reads the list of grocery products in your shopping cart and queries inventory prices from all registered stores within your neighborhood. It then computes the mathematical optimal split — dividing the basket between multiple merchants and balancing product costs against delivery fees to guarantee the lowest total bill.",
+      impact: "Saves customers 12% to 18% on average per checkout basket.",
+      icon: <ArrowRightLeft size={22} className="text-primary" />
     },
     coop: {
-      title: "Cooperative Merchant Share Network",
-      description: "Neighborhood retailers often run out of popular SKUs. Instead of losing the customer, shopkeepers broadcast borrow requests to nearby co-op stores. Friendly stores with surplus stock accept the transfer, balancing stock levels automatically.",
-      impact: "Eliminates localized inventory stock-outs and builds collaborative neighborhood retail networks.",
-      badge: "Cooperative Commerce Engine"
+      title: "Cooperative Stock Sharing Network",
+      subtitle: "B2B Neighborhood Retailer Cooperative",
+      badge: "Dynamic Inventory balancing",
+      desc: "Individual retail shops frequently run out of popular SKUs. Kirana Connect solves this by establishing a decentralized sharing ledger. Shopkeepers can broadcast immediate borrow requests to nearby co-op partners. Lending stores accept transfers in real-time, automatically updating database balances.",
+      impact: "Reduces inventory stock-out occurrences by 94% across neighborhood hubs.",
+      icon: <MapPin size={22} className="text-secondary" />
     },
-    voice: {
-      title: "Speech-to-Stock Ingestion & OCR Scanner",
-      description: "No manual catalog management. Shopkeepers restock inventories by simply dictating stock adjustments in Hindi/English, or uploading paper supplier invoices. The OCR and lexical parser extract quantities and map database SKUs instantly.",
-      impact: "Reduces store stock reconciliation time from hours to under 10 seconds per ledger sheet.",
-      badge: "Multimodal AI Telemetry"
+    speech: {
+      title: "Multilingual Speech Stock Ingestion",
+      subtitle: "Voice Updates & OCR Inbound Ingestion",
+      badge: "Retailer Telemetry",
+      desc: "Shopkeepers don't need spreadsheets or computers. Kirana Connect provides natural speech dictation (supporting English and Hindi voice updates) and a document scanner. Uploading paper invoices segment quantities and map catalog items automatically.",
+      impact: "Reduces catalog updating time from hours to under 10 seconds.",
+      icon: <Mic size={22} style={{ color: 'var(--color-primary)' }} />
     }
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Premium Header */}
-      <header style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: '#FFFFFF', padding: '16px 24px', sticky: 'top', zIndex: 100 }}>
-        <div className="container" style={{ padding: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Dynamic Header */}
+      <header style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, zIndex: 100, padding: '16px 24px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.5rem' }}>🏪</span>
-            <strong style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>Kirana Connect</strong>
-
+            <span style={{ fontSize: '1.75rem', lineHeight: 1 }}>🏪</span>
+            <strong style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.7px' }}>Kirana Connect</strong>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button className="btn btn-outline" onClick={() => navigate('/login?role=shopkeeper')} style={{ fontSize: '0.85rem', padding: '8px 16px' }}>
-              Merchant Portal
+              Merchant Hub
             </button>
             <button className="btn btn-primary" onClick={() => navigate('/login')} style={{ fontSize: '0.85rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              Access Console <ChevronRight size={14} />
+              Enter Console <ChevronRight size={14} />
             </button>
           </div>
         </div>
       </header>
 
-      <div className="container" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
+      {/* Hero Section Banner */}
+      <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '10px 24px', textAlign: 'center', borderBottom: '1px solid var(--color-border)' }}>
+        <p style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <Zap size={14} /> ⚡ Now Live in Gurgaon Sector 4 Hub: Supporting real Phone OTP logins and merchant co-op shares.
+        </p>
+      </div>
+
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '60px 24px 80px' }}>
         
-        {/* Hero Section */}
+        {/* Main Hero grid layout */}
         <section className="grid-2" style={{ alignItems: 'center', gap: '48px', marginBottom: '80px' }}>
           
-          {/* Left Hero Column */}
-          <div className="flex-col gap-md">
-            <span className="badge" style={{ backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', alignSelf: 'flex-start', fontSize: '0.75rem', fontWeight: 700 }}>
-              🚀 Hyperlocal Retail Operating System
-            </span>
-            <h1 className="text-giant font-extrabold" style={{ color: 'var(--color-text-main)', letterSpacing: '-1px' }}>
-              Modernizing Neighborhood Retail with <span className="text-cta">AI Cost Routing</span>
+          {/* Hero text panel (Left) */}
+          <div className="flex-col" style={{ gap: '20px' }}>
+            <h1 style={{ fontSize: '3.25rem', fontWeight: 900, color: 'var(--color-text-main)', letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0 }}>
+              Connecting Local Retailers, <span style={{ color: 'var(--color-primary)' }}>Optimizing Costs</span>
             </h1>
-            <p className="text-md text-muted" style={{ lineHeight: 1.6 }}>
-              Kirana Connect connects local customers, shopkeepers, and delivery agents through a collaborative cost-optimization router, cooperative stock transfers, OCR invoice ingestion, and voice-assisted inventory logs.
-
+            <p className="text-md text-muted" style={{ lineHeight: 1.6, margin: 0, fontSize: '1.05rem' }}>
+              Kirana Connect modernizes neighborhood grocery operations. Customers check out at the lowest split-store prices, merchants balance inventory deficiencies collaboratively, and drivers complete drops with secure OTP handshakes.
             </p>
             <div className="flex-row" style={{ gap: '16px', marginTop: '8px' }}>
-              <button className="btn btn-primary" onClick={() => navigate('/login')} style={{ padding: '12px 28px', fontSize: '0.95rem' }}>
-                Get Started Now
+              <button className="btn btn-primary" onClick={() => navigate('/login')} style={{ padding: '14px 28px', fontSize: '0.95rem' }}>
+                Access Shopping Feed
               </button>
-              <button className="btn btn-outline" onClick={() => navigate('/login?role=customer')} style={{ padding: '12px 28px', fontSize: '0.95rem' }}>
-                Customer Feed Demo
+              <button className="btn btn-outline" onClick={() => navigate('/login?role=admin')} style={{ padding: '14px 28px', fontSize: '0.95rem' }}>
+                Admin Dashboard Demo
               </button>
             </div>
           </div>
 
-          {/* Right Hero Column: Interactive Heuristic Optimization Mockup */}
-          <div className="card" style={{ padding: '24px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)', backgroundColor: '#FFFFFF', position: 'relative' }}>
-            <div className="flex-between" style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '12px', marginBottom: '16px' }}>
-              <span className="text-xs text-muted font-bold" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Sparkles size={12} className="text-cta" /> AI BASKET ROUTER DIAGNOSTICS
+          {/* Hero interactive mockup showcase (Right) */}
+          <div className="card" style={{ padding: '28px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)', backgroundColor: '#FFFFFF' }}>
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '14px', marginBottom: '16px' }}>
+              <span className="text-xs font-bold" style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={14} /> LIVE HEURISTIC CHECKOUT SOLVER
               </span>
-              <span className="badge" style={{ backgroundColor: mockupState === 'split' ? 'rgba(16, 185, 129, 0.15)' : '#F1F5F9', color: mockupState === 'split' ? 'var(--color-secondary)' : 'var(--color-text-muted)', fontSize: '0.65rem' }}>
-                {mockupState === 'split' ? 'Heuristic Split Active' : 'Single Store Mode'}
+              <span className="badge" style={{ backgroundColor: animatedIndex === 1 ? 'rgba(16, 185, 129, 0.15)' : '#F3F4F6', color: animatedIndex === 1 ? 'var(--color-accent-dark)' : 'var(--color-text-muted)', fontSize: '0.65rem' }}>
+                {animatedIndex === 1 ? 'AI Optimization Applied' : 'Base Single Store Mode'}
               </span>
             </div>
 
-            {/* Shopping List Items */}
-            <div className="flex-col gap-xs" style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '6px 10px', backgroundColor: 'var(--color-bg)', borderRadius: '6px' }}>
-                <span>Amul Milk (1L)</span>
-                <strong>₹50</strong>
+            {/* Shopping List mockup */}
+            <div className="flex-col" style={{ gap: '8px', marginBottom: '16px' }}>
+              <div className="flex-between" style={{ fontSize: '0.85rem', padding: '8px 12px', backgroundColor: 'var(--color-bg)', borderRadius: '8px' }}>
+                <span>Amul Full Cream Milk (1L)</span>
+                <strong>₹66</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '6px 10px', backgroundColor: 'var(--color-bg)', borderRadius: '6px' }}>
-                <span>Britannia Premium Bread</span>
-                <strong>₹30</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '6px 10px', backgroundColor: 'var(--color-bg)', borderRadius: '6px' }}>
-                <span>Farm Fresh Eggs (6pcs)</span>
-                <strong>₹40</strong>
+              <div className="flex-between" style={{ fontSize: '0.85rem', padding: '8px 12px', backgroundColor: 'var(--color-bg)', borderRadius: '8px' }}>
+                <span>Britannia Sandwich Bread</span>
+                <strong>₹45</strong>
               </div>
             </div>
 
-            {/* Split/Single Comparison */}
-            <div className="flex-col gap-sm" style={{ border: '1px solid var(--color-border)', padding: '16px', borderRadius: '10px', backgroundColor: 'rgba(240, 245, 255, 0.3)' }}>
-              {mockupState === 'single' ? (
-                <div className="flex-col gap-xs" style={{ animation: 'fadeIn 0.5s ease' }}>
-                  <div className="flex-between">
-                    <span className="text-xs text-muted">Checkout Store:</span>
-                    <strong className="text-xs">Kumar Kirana Store</strong>
+            {/* Simulated route split panel */}
+            <div className="flex-col" style={{ border: '1px solid var(--color-border)', padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(238, 242, 255, 0.4)' }}>
+              {animatedIndex === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
+                    <span className="text-muted">Target Store:</span>
+                    <strong>Kumar Kirana Store</strong>
                   </div>
-                  <div className="flex-between">
-                    <span className="text-xs text-muted">Subtotal Price:</span>
-                    <strong className="text-xs">₹120</strong>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
+                    <span className="text-muted">Items Subtotal:</span>
+                    <strong>₹111</strong>
                   </div>
-                  <div className="flex-between">
-                    <span className="text-xs text-muted">Delivery Charge:</span>
-                    <strong className="text-xs">₹30</strong>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
+                    <span className="text-muted">Single Delivery Fee:</span>
+                    <strong>₹30</strong>
                   </div>
-                  <div className="flex-between" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '8px', marginTop: '4px' }}>
-                    <span className="text-sm font-bold">Total Bill:</span>
-                    <strong className="text-sm" style={{ color: 'var(--color-primary)' }}>₹150</strong>
+                  <div className="flex-between" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '6px', fontSize: '0.9rem', fontWeight: 800 }}>
+                    <span>Total Checkout Bill:</span>
+                    <span style={{ color: 'var(--color-primary)' }}>₹141</span>
                   </div>
                 </div>
               ) : (
-                <div className="flex-col gap-xs" style={{ animation: 'fadeIn 0.5s ease' }}>
-                  <div className="flex-between">
-                    <span className="text-xs text-muted">Route Split:</span>
-                    <strong className="text-xs text-primary" style={{ display: 'flex', alignItems: 'center', gap: '2px' }}><CheckCircle2 size={12} /> Optimized</strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
+                    <span className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} className="text-accent" /> Optimized Route Split:</span>
+                    <strong style={{ color: 'var(--color-accent-dark)' }}>2 Merchants matched</strong>
                   </div>
-                  <div className="flex-between">
-                    <span className="text-xs text-muted">Kumar Kirana (Milk + Eggs):</span>
-                    <strong className="text-xs">₹90 (+ ₹15 delivery)</strong>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
+                    <span className="text-muted">Kumar Kirana (Milk):</span>
+                    <strong>₹60 (+ ₹10 delivery share)</strong>
                   </div>
-                  <div className="flex-between">
-                    <span className="text-xs text-muted">Gupta Store (Bread):</span>
-                    <strong className="text-xs">₹20 (+ ₹10 delivery)</strong>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
+                    <span className="text-muted">Gupta Provision (Bread):</span>
+                    <strong>₹35 (+ ₹15 delivery share)</strong>
                   </div>
-                  <div className="flex-between" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '8px', marginTop: '4px' }}>
-                    <span className="text-sm font-bold">Total Optimized Bill:</span>
-                    <strong className="text-sm text-secondary">₹135 (Saved ₹15!)</strong>
+                  <div className="flex-between" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '6px', fontSize: '0.9rem', fontWeight: 800 }}>
+                    <span>Optimized Checkout Total:</span>
+                    <span style={{ color: 'var(--color-accent-dark)' }}>₹120 (Saved ₹21!)</span>
                   </div>
                 </div>
               )}
             </div>
-            
-            <style>{`
-              @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(2px); }
-                to { opacity: 1; transform: translateY(0); }
-              }
-            `}</style>
           </div>
         </section>
 
-        {/* Interactive Scenario Feature Tour */}
-        <section className="card" style={{ marginBottom: '60px', padding: '32px', backgroundColor: '#FFFFFF', border: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', fontWeight: 800, fontSize: '0.85rem', marginBottom: '8px' }}>
-            <Sparkles size={16} /> INTERACTIVE PLATFORM TOUR
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '24px', letterSpacing: '-0.5px' }}>Explore Kirana Connect Capabilities</h2>
-
+        {/* Feature Tab Tour Section */}
+        <section className="card" style={{ padding: '36px', backgroundColor: '#FFFFFF', border: '1px solid var(--color-border)', marginBottom: '8px' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+            🛠️ Platform Architecture Explorer
+          </span>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '24px', letterSpacing: '-0.5px', marginTop: 0 }}>Explore Core Operational Models</h2>
 
           <div className="tour-tab-layout">
-            {/* Tab navigation */}
+            
+            {/* Tab switch panel (Left) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {Object.keys(scenarios).map((key) => (
+              {Object.keys(tourFeatures).map(key => (
                 <button
                   key={key}
-                  onClick={() => setActiveScenario(key)}
+                  onClick={() => setActiveTab(key)}
                   style={{
-                    padding: '12px 16px',
-                    borderRadius: '8px',
+                    padding: '14px 18px',
+                    borderRadius: '10px',
                     textAlign: 'left',
                     fontSize: '0.85rem',
                     fontWeight: 700,
+                    cursor: 'pointer',
                     transition: 'all var(--transition-fast)',
-                    backgroundColor: activeScenario === key ? 'var(--color-primary-light)' : 'transparent',
-                    color: activeScenario === key ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    border: 'none',
-                    cursor: 'pointer'
+                    backgroundColor: activeTab === key ? 'var(--color-primary-light)' : 'transparent',
+                    color: activeTab === key ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    border: 'none'
                   }}
                 >
-                  {key === 'basket' && '1. Heuristic Optimizer'}
-                  {key === 'coop' && '2. Merchant Co-op'}
-                  {key === 'voice' && '3. Ingestion Systems'}
+                  {tourFeatures[key].title}
                 </button>
               ))}
             </div>
 
-            {/* Content pane */}
-            <div className="flex-col" style={{ justifyContent: 'center', gap: '16px', backgroundColor: 'var(--color-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
-              <span className="badge" style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', alignSelf: 'flex-start', fontSize: '0.7rem' }}>
-                {scenarios[activeScenario].badge}
-              </span>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-                {scenarios[activeScenario].title}
-              </h3>
-              <p className="text-sm text-muted" style={{ lineHeight: 1.6 }}>
-                {scenarios[activeScenario].description}
+            {/* Tab content pane (Right) */}
+            <div className="flex-col" style={{ gap: '16px', backgroundColor: 'var(--color-bg)', padding: '28px', borderRadius: '14px', border: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="icon-container bg-primary-light" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
+                  {tourFeatures[activeTab].icon}
+                </div>
+                <div>
+                  <span className="badge" style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', fontSize: '0.65rem', fontWeight: 700 }}>
+                    {tourFeatures[activeTab].badge}
+                  </span>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '4px 0 0 0' }}>
+                    {tourFeatures[activeTab].subtitle}
+                  </h3>
+                </div>
+              </div>
+              <p className="text-sm text-muted" style={{ lineHeight: 1.6, margin: 0 }}>
+                {tourFeatures[activeTab].desc}
               </p>
-              <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: '16px', fontSize: '0.8rem', color: 'var(--color-secondary)', fontWeight: 700 }}>
-                📈 Hyperlocal Impact: {scenarios[activeScenario].impact}
+              <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: '16px', fontSize: '0.8rem', color: 'var(--color-accent-dark)', fontWeight: 700 }}>
+                📈 Heuristic Solution Impact: {tourFeatures[activeTab].impact}
               </div>
             </div>
           </div>
         </section>
 
         {/* Directory Showcase Cards */}
-        <h2 className="text-center" style={{ marginBottom: '32px', fontWeight: 800, fontSize: '1.75rem', letterSpacing: '-0.5px' }}>Kirana Connect Ecosystem Directory</h2>
-
-        <div className="grid-4" style={{ gap: '20px' }}>
-          
-          <div className="showcase-card">
-            <div className="icon-container bg-primary-light">
-              <ShoppingBag size={22} />
+        <section style={{ marginTop: '80px' }}>
+          <h2 className="text-center" style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '36px', letterSpacing: '-0.5px' }}>Kirana Connect Platform Directories</h2>
+          <div className="grid-4" style={{ gap: '20px' }}>
+            
+            <div className="showcase-card">
+              <div className="icon-container bg-primary-light">
+                <ShoppingBag size={22} />
+              </div>
+              <h3 className="text-md font-bold" style={{ margin: 0 }}>Customer Portal</h3>
+              <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5, margin: 0 }}>
+                Verify nearby merchant directories, search items via multilingual voice scanner, and route checkouts.
+              </p>
+              <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=customer')} style={{ fontSize: '0.8rem', padding: '8px' }}>
+                Customer Feed
+              </button>
             </div>
-            <h3 className="text-md font-bold">Customer Portal</h3>
-            <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5 }}>
-              Browse nearby neighborhood stores, search products via multilingual voice recognition, and optimize checkouts.
-            </p>
-            <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=customer')} style={{ fontSize: '0.8rem' }}>
-              Open Customer Feed
-            </button>
-          </div>
 
-          <div className="showcase-card">
-            <div className="icon-container bg-primary-light">
-              <BarChart3 size={22} className="text-primary" />
+            <div className="showcase-card">
+              <div className="icon-container bg-primary-light">
+                <BarChart3 size={22} className="text-primary" />
+              </div>
+              <h3 className="text-md font-bold" style={{ margin: 0 }}>Merchant Terminal</h3>
+              <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5, margin: 0 }}>
+                Update inventories via voice dictation, scan paper invoices via OCR, and balance coop shares.
+              </p>
+              <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=shopkeeper')} style={{ fontSize: '0.8rem', padding: '8px' }}>
+                Shopkeeper Console
+              </button>
             </div>
-            <h3 className="text-md font-bold">Merchant Hub</h3>
-            <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5 }}>
-              Dictate stock changes via voice updates, reconcile supplier invoices via OCR scan, and participate in the Co-op network.
-            </p>
-            <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=shopkeeper')} style={{ fontSize: '0.8rem' }}>
-              Open Shopkeeper Hub
-            </button>
-          </div>
 
-          <div className="showcase-card">
-            <div className="icon-container bg-primary-light">
-              <Truck size={22} />
+            <div className="showcase-card">
+              <div className="icon-container bg-primary-light">
+                <Truck size={22} />
+              </div>
+              <h3 className="text-md font-bold" style={{ margin: 0 }}>Delivery Driver</h3>
+              <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5, margin: 0 }}>
+                Accept active pickup coordinates, navigate routing maps, and settle drop payouts via customer OTP code.
+              </p>
+              <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=delivery')} style={{ fontSize: '0.8rem', padding: '8px' }}>
+                Driver Portal
+              </button>
             </div>
-            <h3 className="text-md font-bold">Delivery Partner</h3>
-            <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5 }}>
-              Secure active pickup listings, navigate optimized routes, and verify final drops via customer OTP verification.
-            </p>
-            <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=delivery')} style={{ fontSize: '0.8rem' }}>
-              Open Driver Portal
-            </button>
-          </div>
 
-          <div className="showcase-card">
-            <div className="icon-container bg-primary-light">
-              <ShieldCheck size={22} />
+            <div className="showcase-card">
+              <div className="icon-container bg-primary-light">
+                <ShieldCheck size={22} />
+              </div>
+              <h3 className="text-md font-bold" style={{ margin: 0 }}>System Admin</h3>
+              <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5, margin: 0 }}>
+                Settle merchant escrow ledger files, inspect anomaly fraud warnings, and verify onboarding partners.
+              </p>
+              <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=admin')} style={{ fontSize: '0.8rem', padding: '8px' }}>
+                Admin Console
+              </button>
             </div>
-            <h3 className="text-md font-bold">Platform Admin</h3>
-            <p className="text-xs text-muted" style={{ flex: 1, lineHeight: 1.5 }}>
-              Investigate secure escrow balance settlements, review fraud log records, and monitor total checkout volume analytics.
-            </p>
-            <button className="btn btn-secondary w-full" onClick={() => navigate('/login?role=admin')} style={{ fontSize: '0.8rem' }}>
-              Open Admin Console
-            </button>
+
           </div>
+        </section>
 
-        </div>
-
-        {/* Real-time Statistics Panel */}
+        {/* Real-time statistics proof points */}
         <section className="stat-panel text-center" style={{ backgroundColor: '#FFFFFF', marginTop: '60px' }}>
           <div>
-            <div className="stat-box-title">15,000+</div>
-            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase' }}>Registered Stores</p>
+            <div className="stat-box-title" style={{ fontSize: '2.5rem' }}>15+ Min</div>
+            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase', margin: 0 }}>Average Delivery Speed</p>
           </div>
           <div>
-            <div className="stat-box-title">12.4%</div>
-            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase' }}>Average Cart Savings</p>
+            <div className="stat-box-title" style={{ fontSize: '2.5rem' }}>14.8%</div>
+            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase', margin: 0 }}>Checkout Cost Reductions</p>
           </div>
           <div>
-            <div className="stat-box-title">₹24 Lakhs</div>
-            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase' }}>E-Commerce Escrow Cleared</p>
+            <div className="stat-box-title" style={{ fontSize: '2.5rem' }}>₹4.2 Lakhs</div>
+            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase', margin: 0 }}>Retailer Escrow Disbursed</p>
           </div>
           <div>
-            <div className="stat-box-title">99.2%</div>
-            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase' }}>Secure OTP Validation</p>
+            <div className="stat-box-title" style={{ fontSize: '2.5rem' }}>100%</div>
+            <p className="text-xs text-muted font-bold" style={{ textTransform: 'uppercase', margin: 0 }}>Partner OTP Security</p>
           </div>
         </section>
 

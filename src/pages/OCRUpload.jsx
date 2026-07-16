@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Upload, FileText, CheckCircle2, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, ChevronRight, AlertCircle, RefreshCw, Terminal } from 'lucide-react';
 
 export default function OCRUpload() {
   const navigate = useNavigate();
@@ -193,6 +193,23 @@ export default function OCRUpload() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* NEW: OCR Extracted Lexical Diagnostic Log */}
+            <div className="card" style={{ backgroundColor: '#050B14', fontFamily: 'monospace', border: '1px solid var(--color-primary)', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px', color: '#10B981' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(79, 70, 229, 0.2)', paddingBottom: '6px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Terminal size={12} /> [OCR INGESTION DIAGNOSTIC LOG v2.1]</span>
+                <span>MATCHING: SUCCESS</span>
+              </div>
+              <div style={{ fontSize: '0.8rem', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div>&gt; INGESTING IMAGE MEMORY STREAM... DONE</div>
+                <div>&gt; DETECTING GRID LINES: {ocrResult.items.length} segments found</div>
+                {ocrResult.items.map((it, i) => (
+                  <div key={i}>&gt; MAP [{i}]: "{it.name}" ➔ SKU Match: {it.confidence}% confidence</div>
+                ))}
+                <div>&gt; INVOICE NUMBER PARSED: {ocrResult.invoiceNumber}</div>
+                <div style={{ color: '#9CA3AF', marginTop: '6px' }}>&gt; Click "Accept Ledger & Import" to sync wholesale purchases.</div>
+              </div>
             </div>
 
             {syncDone ? (

@@ -3,15 +3,20 @@ import { useAuth } from '../context/AuthContext';
 import {
   Truck, Users, FileText, BarChart3, Plus, Search, Filter,
   X, Eye, Calendar, ArrowRight, DollarSign,
-  Layers, Package, Edit2
+  Layers, Package, Edit2, Activity
 } from 'lucide-react';
 
 export default function ProcurementManager() {
   const { token, user } = useAuth();
   const storeId = user?.storeId;
 
-  // Tabs: 'overview', 'suppliers', 'orders', 'reports'
+  // Tabs: 'overview', 'suppliers', 'orders', 'reports', 'pools'
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Co-op Buying Pools Data
+  const [pools, setPools] = useState([]);
+  const [joiningPoolId, setJoiningPoolId] = useState(null);
+  const [joinQty, setJoinQty] = useState(10);
 
   // Suppliers Data
   const [suppliers, setSuppliers] = useState([]);
@@ -67,7 +72,49 @@ export default function ProcurementManager() {
     fetchPurchaseOrders();
     fetchAnalytics();
     fetchGlobalProducts();
+    if (activeTab === 'pools') {
+      fetchPools();
+    }
   }, [activeTab]);
+
+  const fetchPools = async () => {
+    try {
+      const res = await fetch('/api/procurement/pools', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPools(data);
+      }
+    } catch (err) {
+      console.error('Error fetching buying pools:', err);
+    }
+  };
+
+  const handleJoinPool = async (poolId, quantity) => {
+    try {
+      const res = await fetch(`/api/procurement/pools/${poolId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantity })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'Joined co-op buying pool!');
+        setJoiningPoolId(null);
+        setJoinQty(10);
+        fetchPools();
+        fetchPurchaseOrders();
+      } else {
+        alert(data.message || 'Failed to join buying pool.');
+      }
+    } catch (err) {
+      alert('Error joining buying pool.');
+    }
+  };
 
   const fetchGlobalProducts = async () => {
     try {
@@ -385,7 +432,8 @@ export default function ProcurementManager() {
           { id: 'overview', label: 'Overview', icon: <Layers size={16} /> },
           { id: 'suppliers', label: 'Suppliers', icon: <Users size={16} /> },
           { id: 'orders', label: 'Purchase Orders', icon: <FileText size={16} /> },
-          { id: 'reports', label: 'Performance & Reports', icon: <BarChart3 size={16} /> }
+          { id: 'reports', label: 'Performance & Reports', icon: <BarChart3 size={16} /> },
+          { id: 'pools', label: 'Co-op Buying Pools', icon: <Activity size={16} /> }
         ].map(tab => (
           <button
             key={tab.id}
@@ -856,6 +904,138 @@ export default function ProcurementManager() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {activeTab === 'pools' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div className="card" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Cooperative Bulk Procurement Pools</h3>
+                <p className="text-sm text-muted" style={{ margin: '4px 0 0 0' }}>
+                  Pool your stock demands with other Gurgaon Sector 4 merchants to purchase wholesale goods at a bulk discount.
+                </p>
+              </div>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  const name = prompt("Enter pool product name (e.g. Co-op Wheat Flour 500kg):");
+                  if (!name) return;
+                  const targetQty = prompt("Enter target bulk quantity (kg):", "200");
+                  if (!targetQty) return;
+                  const price = prompt("Enter co-op price per kg:", "40");
+                  if (!price) return;
+                  fetch('/api/procurement/pools', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, targetQty: Number(targetQty), price: Number(price), currentQty: 0 })
+                  }).then(res => {
+                    if (res.ok) {
+                      fetchPools();
+                    }
+                  });
+                }}
+                style={{ fontSize: '0.85rem' }}
+              >
+                Create New Pool
+              </button>
+            </div>
+
+            {pools.length === 0 ? (
+              <p className="text-sm text-muted" style={{ textAlign: 'center', padding: '30px 0' }}>Loading collective buying pools...</p>
+            ) : (
+              <div className="grid-2" style={{ gap: '20px' }}>
+                {pools.map(pool => {
+                  const percent = Math.min(100, Math.round(((pool.currentQty || 0) / pool.targetQty) * 100));
+                  return (
+                    <div key={pool._id} className="card" style={{ border: '1px solid var(--color-border)', borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--color-bg)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <strong style={{ fontSize: '1rem', color: 'var(--color-text-main)' }}>{pool.name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                            Bulk Price: <span style={{ color: 'var(--color-accent-dark)', fontWeight: 700 }}>₹{pool.price}/kg</span>
+                          </div>
+                        </div>
+                        <span className="badge" style={{
+                          backgroundColor: pool.status === 'ordered' ? 'var(--color-accent-light)' : 'rgba(99,102,241,0.1)',
+                          color: pool.status === 'ordered' ? 'var(--color-accent-dark)' : 'var(--color-primary)',
+                          fontSize: '0.65rem',
+                          fontWeight: 700
+                        }}>
+                          {pool.status === 'ordered' ? '✓ Ordered Wholesale' : '⚡ Gathering Demands'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                          <span className="text-muted">Target: {pool.targetQty}kg</span>
+                          <span>{pool.currentQty || 0}kg collected ({percent}%)</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', backgroundColor: '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percent}%`, height: '100%', backgroundColor: pool.status === 'ordered' ? 'var(--color-accent)' : 'var(--color-primary)' }} />
+                        </div>
+                      </div>
+
+                      {/* Participants List */}
+                      <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px', fontWeight: 700 }}>PARTICIPATING MERCHANTS:</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {pool.participants?.map((p, idx) => (
+                            <span key={idx} style={{ fontSize: '0.7rem', backgroundColor: '#FFFFFF', border: '1px solid var(--color-border)', padding: '4px 8px', borderRadius: '16px', color: 'var(--color-text-main)' }}>
+                              {p.storeName} ({p.qty}kg)
+                            </span>
+                          )) || <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>No participants yet.</span>}
+                        </div>
+                      </div>
+
+                      {pool.status !== 'ordered' && (
+                        joiningPoolId === pool._id ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#FFFFFF', padding: '8px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                            <input
+                              type="number"
+                              className="form-control"
+                              style={{ flex: 1, padding: '6px', fontSize: '0.8rem' }}
+                              value={joinQty}
+                              onChange={(e) => setJoinQty(e.target.value)}
+                              placeholder="Qty (kg)"
+                            />
+                            <button 
+                              className="btn btn-primary"
+                              onClick={() => handleJoinPool(pool._id, joinQty)}
+                              style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                            >
+                              Submit
+                            </button>
+                            <button 
+                              className="btn"
+                              onClick={() => setJoiningPoolId(null)}
+                              style={{ fontSize: '0.75rem', padding: '6px', border: '1px solid var(--color-border)' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => { setJoiningPoolId(pool._id); setJoinQty(10); }}
+                            style={{ fontSize: '0.8rem', padding: '10px' }}
+                          >
+                            Join Pool & Declare Demand
+                          </button>
+                        )
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 

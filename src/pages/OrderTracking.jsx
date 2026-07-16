@@ -212,7 +212,7 @@ export default function OrderTracking() {
             <div style={{ position: 'absolute', top: '40%', left: 0, right: 0, height: '16px', backgroundColor: 'white' }}></div>
             <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: '16px', backgroundColor: 'white' }}></div>
 
-            {/* Merchant Pinpoint */}
+            {/* Merchant Pinpoint A */}
             {(() => {
               const pos = getMapCoordinates(28.4595, 77.0266);
               return (
@@ -221,7 +221,22 @@ export default function OrderTracking() {
                     <MapPin size={16} />
                   </div>
                   <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'white', border: '1px solid var(--color-border)', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', fontWeight: 700 }}>
-                    Store Hub
+                    Store A (Hub)
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Merchant Pinpoint B (if optimized split checkout) */}
+            {order.isOptimized && (() => {
+              const pos = getMapCoordinates(28.4610, 77.0245);
+              return (
+                <div style={{ position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)', zIndex: 10 }}>
+                  <div style={{ padding: '6px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', color: 'white', boxShadow: 'var(--shadow-md)' }}>
+                    <MapPin size={16} />
+                  </div>
+                  <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'white', border: '1px solid var(--color-border)', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                    Store B (Co-op)
                   </div>
                 </div>
               );

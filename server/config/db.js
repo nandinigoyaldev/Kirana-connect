@@ -152,12 +152,16 @@ const readLocalDB = () => {
     if (!data.suppliers) data.suppliers = [];
     if (!data.purchaseOrders) data.purchaseOrders = [];
     if (!data.coopRequests) data.coopRequests = [];
+    if (!data.coopPools) data.coopPools = [];
+    if (!data.escrowLedger) data.escrowLedger = [];
+    if (!data.swapOffers) data.swapOffers = [];
+    if (!data.groupBaskets) data.groupBaskets = [];
     return data;
 
   } catch (e) {
     console.error("Error reading local DB", e);
     return {
-      users: [], stores: [], products: [], inventory: [], orders: [], wallets: [], suppliers: [], purchaseOrders: []
+      users: [], stores: [], products: [], inventory: [], orders: [], wallets: [], suppliers: [], purchaseOrders: [], coopRequests: [], coopPools: [], escrowLedger: []
     };
   }
 };
@@ -221,6 +225,10 @@ const translateQuery = (supabaseQuery, queryObj) => {
     else if (key === 'productName') dbKey = 'product_name';
     else if (key === 'targetStoreId') dbKey = 'target_store_id';
     else if (key === 'targetStoreName') dbKey = 'target_store_name';
+    else if (key === 'disputeStatus') dbKey = 'dispute_status';
+    else if (key === 'groupBasketId') dbKey = 'group_basket_id';
+    else if (key === 'surgeModifier') dbKey = 'surge_modifier';
+    else if (key === 'khataScore') dbKey = 'khata_score';
 
 
     let val = queryObj[key];
@@ -244,15 +252,17 @@ const translateQuery = (supabaseQuery, queryObj) => {
 const formatUser = (u) => {
   if (!u) return null;
   return {
-    _id: u.id,
+    _id: u.id || u._id,
     name: u.name,
     email: u.email,
     password: u.password,
     role: u.role,
     phone: u.phone,
-    storeId: u.store_id,
-    isApproved: u.is_approved === undefined || u.is_approved === null ? true : u.is_approved,
-    createdAt: u.created_at
+    storeId: u.store_id || u.storeId,
+    isApproved: u.is_approved === undefined || u.is_approved === null ? (u.isApproved === undefined ? true : u.isApproved) : u.is_approved,
+    khataDebt: u.khata_debt === undefined || u.khata_debt === null ? (u.khataDebt || 0) : u.khata_debt,
+    khataScore: u.khata_score === undefined || u.khata_score === null ? (u.khataScore || 'A+') : u.khata_score,
+    createdAt: u.created_at || u.createdAt
   };
 };
 
@@ -313,6 +323,9 @@ const formatOrder = (o) => {
     shippingAddress: o.shipping_address,
     isOptimized: o.is_optimized,
     deliveryOtp: o.delivery_otp || o.deliveryOtp,
+    disputeStatus: o.dispute_status === undefined || o.dispute_status === null ? (o.disputeStatus || null) : o.dispute_status,
+    groupBasketId: o.group_basket_id === undefined || o.group_basket_id === null ? (o.groupBasketId || null) : o.group_basket_id,
+    surgeModifier: o.surge_modifier === undefined || o.surge_modifier === null ? (o.surgeModifier || 1.0) : o.surge_modifier,
     createdAt: o.created_at
   };
 };
@@ -411,6 +424,10 @@ const extractUpdateFields = (update) => {
     else if (key === 'productName') dbKey = 'product_name';
     else if (key === 'targetStoreId') dbKey = 'target_store_id';
     else if (key === 'targetStoreName') dbKey = 'target_store_name';
+    else if (key === 'disputeStatus') dbKey = 'dispute_status';
+    else if (key === 'groupBasketId') dbKey = 'group_basket_id';
+    else if (key === 'surgeModifier') dbKey = 'surge_modifier';
+    else if (key === 'khataScore') dbKey = 'khata_score';
     else if (key === 'location' && typeof data[key] === 'object') {
 
       res['lat'] = data[key].lat;
@@ -429,23 +446,43 @@ const extractUpdateFields = (update) => {
 export const db = {
   users: {
     find: async (query = {}) => {
-      let q = supabase.from('users').select('*');
-      q = translateQuery(q, query);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data || []).map(formatUser);
+      try {
+        let q = supabase.from('users').select('*');
+        q = translateQuery(q, query);
+        const { data, error } = await q;
+        if (error) throw error;
+        return (data || []).map(formatUser);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for users.find:", err.message);
+        const local = readLocalDB();
+        return filterLocal(local.users, query).map(formatUser);
+      }
     },
     findOne: async (query = {}) => {
-      let q = supabase.from('users').select('*');
-      q = translateQuery(q, query);
-      const { data, error } = await q.limit(1);
-      if (error) throw error;
-      return data && data.length > 0 ? formatUser(data[0]) : null;
+      try {
+        let q = supabase.from('users').select('*');
+        q = translateQuery(q, query);
+        const { data, error } = await q.limit(1);
+        if (error) throw error;
+        return data && data.length > 0 ? formatUser(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for users.findOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.users, query);
+        return filtered.length > 0 ? formatUser(filtered[0]) : null;
+      }
     },
     findById: async (id) => {
-      const { data, error } = await supabase.from('users').select('*').eq('id', id.toString()).limit(1);
-      if (error) throw error;
-      return data && data.length > 0 ? formatUser(data[0]) : null;
+      try {
+        const { data, error } = await supabase.from('users').select('*').eq('id', id.toString()).limit(1);
+        if (error) throw error;
+        return data && data.length > 0 ? formatUser(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for users.findById:", err.message);
+        const local = readLocalDB();
+        const found = local.users.find(u => (u.id === id.toString() || u._id === id.toString()));
+        return found ? formatUser(found) : null;
+      }
     },
     create: async (data) => {
       const id = generateId();
@@ -456,19 +493,56 @@ export const db = {
         password: data.password,
         role: data.role || 'customer',
         phone: data.phone || '',
-        store_id: data.storeId || null
+        store_id: data.storeId || null,
+        is_approved: data.isApproved === undefined ? ((data.role === 'customer' || data.role === 'admin') ? true : false) : data.isApproved,
+        khata_debt: 0,
+        khata_score: data.khataScore || 'A+'
       };
-      const { error } = await supabase.from('users').insert(dbData);
-      if (error) throw error;
-      return formatUser(dbData);
+      try {
+        const { error } = await supabase.from('users').insert(dbData);
+        if (error) throw error;
+        return formatUser(dbData);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for users.create:", err.message);
+        const local = readLocalDB();
+        const newUser = {
+          _id: id,
+          id,
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          role: data.role || 'customer',
+          phone: data.phone || '',
+          storeId: data.storeId || null,
+          isApproved: data.isApproved === undefined ? ((data.role === 'customer' || data.role === 'admin') ? true : false) : data.isApproved,
+          khataDebt: 0,
+          khataScore: data.khataScore || 'A+',
+          createdAt: new Date().toISOString()
+        };
+        local.users.push(newUser);
+        writeLocalDB(local);
+        return formatUser(newUser);
+      }
     },
     updateOne: async (query, update) => {
       const fields = extractUpdateFields(update);
-      let q = supabase.from('users').update(fields);
-      q = translateQuery(q, query);
-      const { error } = await q;
-      if (error) throw error;
-      return { nModified: 1 };
+      try {
+        let q = supabase.from('users').update(fields);
+        q = translateQuery(q, query);
+        const { error } = await q;
+        if (error) throw error;
+        return { nModified: 1 };
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for users.updateOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.users, query);
+        const setFields = update.$set || update;
+        filtered.forEach(u => {
+          Object.assign(u, setFields);
+        });
+        writeLocalDB(local);
+        return { nModified: filtered.length };
+      }
     }
   },
   stores: {
@@ -597,11 +671,43 @@ export const db = {
         payment_method: data.paymentMethod || 'cod',
         payment_status: data.paymentStatus || 'pending',
         shipping_address: data.shippingAddress || '',
-        is_optimized: data.isOptimized || false
+        is_optimized: data.isOptimized || false,
+        dispute_status: data.disputeStatus || null,
+        group_basket_id: data.groupBasketId || null,
+        surge_modifier: data.surgeModifier || 1.0
       };
-      const { error } = await supabase.from('orders').insert(dbData);
-      if (error) throw error;
-      return formatOrder(dbData);
+      try {
+        const { error } = await supabase.from('orders').insert(dbData);
+        if (error) throw error;
+        return formatOrder(dbData);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for orders.create:", err.message);
+        const local = readLocalDB();
+        const newOrder = {
+          _id: id,
+          id,
+          customerId: data.customerId,
+          deliveryPartnerId: data.deliveryPartnerId || null,
+          items: data.items,
+          subtotal: data.subtotal,
+          deliveryFee: data.deliveryFee,
+          taxes: data.taxes,
+          total: data.total,
+          status: data.status || 'pending',
+          paymentMethod: data.paymentMethod || 'cod',
+          paymentStatus: data.paymentStatus || 'pending',
+          shippingAddress: data.shippingAddress || '',
+          isOptimized: data.isOptimized || false,
+          deliveryOtp: data.deliveryOtp || null,
+          disputeStatus: data.disputeStatus || null,
+          groupBasketId: data.groupBasketId || null,
+          surgeModifier: data.surgeModifier || 1.0,
+          createdAt: new Date().toISOString()
+        };
+        local.orders.push(newOrder);
+        writeLocalDB(local);
+        return formatOrder(newOrder);
+      }
     },
     updateOne: async (query, update) => {
       const fields = extractUpdateFields(update);
@@ -1024,6 +1130,197 @@ export const db = {
         writeLocalDB(local);
         return { nModified: filtered.length };
       }
+    }
+  },
+  coopPools: {
+    find: async (query = {}) => {
+      const local = readLocalDB();
+      if (!local.coopPools || local.coopPools.length === 0) {
+        local.coopPools = [
+          {
+            _id: 'pool-1',
+            name: 'Co-op Sugar Pool (100kg)',
+            targetQty: 100,
+            currentQty: 40,
+            price: 36,
+            supplierId: 'sup-1',
+            status: 'gathering',
+            participants: [
+              { storeId: '60d5ec49867c293444747b12', storeName: 'Kumar Kirana Store', qty: 40 }
+            ],
+            createdAt: new Date().toISOString()
+          },
+          {
+            _id: 'pool-2',
+            name: 'Co-op Basmati Rice Pool (200kg)',
+            targetQty: 200,
+            currentQty: 120,
+            price: 72,
+            supplierId: 'sup-2',
+            status: 'gathering',
+            participants: [
+              { storeId: '60d5ec49867c293444747b13', storeName: 'Daily Needs Super Store', qty: 70 },
+              { storeId: '60d5ec49867c293444747b14', storeName: 'Gupta Provision Store', qty: 50 }
+            ],
+            createdAt: new Date().toISOString()
+          }
+        ];
+        writeLocalDB(local);
+      }
+      return filterLocal(local.coopPools, query);
+    },
+    findById: async (id) => {
+      const local = readLocalDB();
+      return local.coopPools.find(p => (p._id === id.toString() || p.id === id.toString())) || null;
+    },
+    create: async (data) => {
+      const id = generateId();
+      const local = readLocalDB();
+      const newPool = {
+        _id: id,
+        id,
+        name: data.name,
+        targetQty: data.targetQty || 100,
+        currentQty: data.currentQty || 0,
+        price: data.price || 10,
+        supplierId: data.supplierId || 'sup-1',
+        status: data.status || 'gathering',
+        participants: data.participants || [],
+        createdAt: new Date().toISOString()
+      };
+      if (!local.coopPools) local.coopPools = [];
+      local.coopPools.push(newPool);
+      writeLocalDB(local);
+      return newPool;
+    },
+    updateOne: async (query, update) => {
+      const local = readLocalDB();
+      const filtered = filterLocal(local.coopPools, query);
+      const setFields = update.$set || update;
+      filtered.forEach(p => {
+        Object.assign(p, setFields);
+      });
+      writeLocalDB(local);
+      return { nModified: filtered.length };
+    }
+  },
+  escrowLedger: {
+    find: async (query = {}) => {
+      const local = readLocalDB();
+      if (!local.escrowLedger) local.escrowLedger = [];
+      return filterLocal(local.escrowLedger, query);
+    },
+    findOne: async (query = {}) => {
+      const local = readLocalDB();
+      if (!local.escrowLedger) local.escrowLedger = [];
+      const filtered = filterLocal(local.escrowLedger, query);
+      return filtered.length > 0 ? filtered[0] : null;
+    },
+    create: async (data) => {
+      const id = generateId();
+      const local = readLocalDB();
+      const newItem = {
+        _id: id,
+        id,
+        orderId: data.orderId,
+        orderNumber: data.orderNumber,
+        merchantId: data.merchantId || null,
+        driverId: data.driverId || null,
+        amount: data.amount || 0,
+        status: data.status || 'held',
+        disputeReason: data.disputeReason || '',
+        createdAt: new Date().toISOString()
+      };
+      if (!local.escrowLedger) local.escrowLedger = [];
+      local.escrowLedger.push(newItem);
+      writeLocalDB(local);
+      return newItem;
+    },
+    updateOne: async (query, update) => {
+      const local = readLocalDB();
+      const filtered = filterLocal(local.escrowLedger, query);
+      const setFields = update.$set || update;
+      filtered.forEach(item => {
+        Object.assign(item, setFields);
+      });
+      writeLocalDB(local);
+      return { nModified: filtered.length };
+    }
+  },
+  swapOffers: {
+    find: async (query = {}) => {
+      const local = readLocalDB();
+      if (!local.swapOffers) local.swapOffers = [];
+      return filterLocal(local.swapOffers, query);
+    },
+    create: async (data) => {
+      const id = generateId();
+      const local = readLocalDB();
+      const newOffer = {
+        _id: id,
+        id,
+        fromStoreId: data.fromStoreId,
+        fromStoreName: data.fromStoreName,
+        toStoreId: data.toStoreId,
+        toStoreName: data.toStoreName,
+        offerItem: data.offerItem,
+        demandItem: data.demandItem,
+        status: data.status || 'pending',
+        createdAt: new Date().toISOString()
+      };
+      if (!local.swapOffers) local.swapOffers = [];
+      local.swapOffers.push(newOffer);
+      writeLocalDB(local);
+      return newOffer;
+    },
+    updateOne: async (query, update) => {
+      const local = readLocalDB();
+      const filtered = filterLocal(local.swapOffers, query);
+      const setFields = update.$set || update;
+      filtered.forEach(o => {
+        Object.assign(o, setFields);
+      });
+      writeLocalDB(local);
+      return { nModified: filtered.length };
+    }
+  },
+  groupBaskets: {
+    find: async (query = {}) => {
+      const local = readLocalDB();
+      if (!local.groupBaskets) local.groupBaskets = [];
+      return filterLocal(local.groupBaskets, query);
+    },
+    findOne: async (query = {}) => {
+      const local = readLocalDB();
+      if (!local.groupBaskets) local.groupBaskets = [];
+      const filtered = filterLocal(local.groupBaskets, query);
+      return filtered.length > 0 ? filtered[0] : null;
+    },
+    create: async (data) => {
+      const id = generateId();
+      const local = readLocalDB();
+      const newBasket = {
+        _id: id,
+        id,
+        creatorName: data.creatorName,
+        items: data.items || [],
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+      if (!local.groupBaskets) local.groupBaskets = [];
+      local.groupBaskets.push(newBasket);
+      writeLocalDB(local);
+      return newBasket;
+    },
+    updateOne: async (query, update) => {
+      const local = readLocalDB();
+      const filtered = filterLocal(local.groupBaskets, query);
+      const setFields = update.$set || update;
+      filtered.forEach(b => {
+        Object.assign(b, setFields);
+      });
+      writeLocalDB(local);
+      return { nModified: filtered.length };
     }
   }
 };

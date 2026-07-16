@@ -7,6 +7,7 @@ export default function AdminDashboard() {
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [escrows, setEscrows] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Settings edit mock
@@ -35,8 +36,16 @@ export default function AdminDashboard() {
         setPendingUsers(pendData.pending || []);
       }
 
+      // Fetch escrow entries
+      const escRes = await fetch('/api/admin/escrow', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (escRes.ok) {
+        const escData = await escRes.json();
+        setEscrows(escData);
+      }
+
       // Load all registered users for admin directory list
-      const uRes = await fetch('/api/stores'); // dummy database fetch to populate some data
       const seededUsers = [
         { name: "Aarav Sharma", email: "customer@example.com", role: "customer", phone: "+91 98765 43210" },
         { name: "Rajesh Kumar", email: "shopkeeper@example.com", role: "shopkeeper", phone: "+91 87654 32109" },
@@ -48,6 +57,24 @@ export default function AdminDashboard() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResolveEscrow = async (escrowId, action) => {
+    try {
+      const res = await fetch(`/api/admin/escrow/${escrowId}/resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action })
+      });
+      const data = await res.json();
+      alert(data.message || 'Escrow transaction settled!');
+      fetchAdminData();
+    } catch (err) {
+      alert('Error settling escrow transaction.');
     }
   };
 
@@ -254,6 +281,82 @@ export default function AdminDashboard() {
 
         </div>
 
+      </div>
+
+      {/* Escrow Settlement Disputes Console */}
+      <div className="card" style={{ marginTop: '30px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Activity size={20} className="color-primary" /> Virtual Escrow Settlement Ledger
+          </h3>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
+            Security audit console monitoring delivery funds held in trust. Resolve payout disputes or trigger manual cash refunds.
+          </p>
+        </div>
+
+        {escrows.length === 0 ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+            No active escrow holdings. All transactions cleared.
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="custom-table" style={{ fontSize: '0.85rem' }}>
+              <thead>
+                <tr>
+                  <th>Order Reference</th>
+                  <th>Total Held</th>
+                  <th>Driver Assigned</th>
+                  <th>Delivery OTP</th>
+                  <th>Escrow Status</th>
+                  <th style={{ textAlign: 'right' }}>Dispute Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {escrows.map(esc => (
+                  <tr key={esc.orderId}>
+                    <td><strong>#{esc.orderId.substring(0, 8)}</strong></td>
+                    <td style={{ fontWeight: 700 }}>₹{esc.amount}</td>
+                    <td>{esc.driverId ? `Driver (ID: ${esc.driverId.substring(0, 6)})` : <span style={{ color: 'var(--color-text-muted)' }}>None Assigned</span>}</td>
+                    <td>{esc.deliveryOtp || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}</td>
+                    <td>
+                      <span className={`badge ${
+                        esc.status === 'disbursed' 
+                          ? 'badge-success' 
+                          : esc.status === 'refunded' 
+                            ? 'badge-error' 
+                            : 'badge-warning'
+                      }`}>
+                        {esc.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {esc.status === 'held' ? (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => handleResolveEscrow(esc.orderId, 'disburse')}
+                            style={{ padding: '6px 10px', fontSize: '0.7rem' }}
+                          >
+                            Force Driver Payout
+                          </button>
+                          <button
+                            className="btn btn-outline"
+                            onClick={() => handleResolveEscrow(esc.orderId, 'refund')}
+                            style={{ padding: '6px 10px', fontSize: '0.7rem', borderColor: 'var(--color-error)', color: 'var(--color-error)' }}
+                          >
+                            Refund Customer
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Settled</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>
