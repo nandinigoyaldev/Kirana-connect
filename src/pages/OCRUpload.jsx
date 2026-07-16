@@ -7,7 +7,7 @@ export default function OCRUpload() {
   const navigate = useNavigate();
   const { token, user } = useAuth();
   
-  // OCR processing states
+  // OCR states
   const [fileSelected, setFileSelected] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
@@ -19,8 +19,6 @@ export default function OCRUpload() {
     setFileSelected(true);
     setIsScanning(true);
     setSyncDone(false);
-
-    // Call OCR endpoint
     triggerOCRScan();
   };
 
@@ -46,13 +44,11 @@ export default function OCRUpload() {
     setIsSyncing(true);
     
     try {
-      // Fetch current store inventory first
       const storeId = user?.storeId || '60d5ec49867c293444747b11';
       const invRes = await fetch(`/api/inventory/store/${storeId}`);
       const invData = await invRes.json();
       const storeInventory = invData.inventory || [];
 
-      // Sync each item to store inventory
       for (const item of ocrResult.items) {
         const existingItem = storeInventory.find(i => (i.productId._id === item.productId || i.productId === item.productId));
         const prevStock = existingItem ? existingItem.stock : 0;
@@ -81,26 +77,27 @@ export default function OCRUpload() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '30px' }}>
+    <div className="split-layout-wide-left">
       
-      {/* Left: Drag Drop Area */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>OCR Invoice Scanner</h3>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-          Upload merchant supplier invoices. Our AI extracts product names, item quantities, and cost rates to automatically log incoming stock.
+      {/* Left Panel: Invoice File Dropzone */}
+      <div className="card flex-col gap-md">
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>OCR Invoice Ingestion</h3>
+        <p className="text-sm text-muted" style={{ lineHeight: 1.5 }}>
+          Upload wholesaler and distributor invoices. The AI optical scanner extracts product listings, quantities, and buying rates to reconcile stock levels.
         </p>
 
-        {/* Drag/Drop Box */}
+        {/* Dynamic Drag-Drop Ingestion Box */}
         <form 
           onSubmit={handleFileUpload} 
+          className="flex-col flex-center"
           style={{ 
             border: '2px dashed var(--color-border)', 
             borderRadius: '12px', 
             padding: '40px 20px', 
             textAlign: 'center',
-            backgroundColor: 'var(--color-bg)',
+            backgroundColor: 'rgba(255,255,255,0.01)',
             cursor: 'pointer',
-            transition: 'border-color var(--transition-fast)'
+            transition: 'all var(--transition-fast)'
           }}
           onClick={() => document.getElementById('invoice-file').click()}
         >
@@ -110,80 +107,110 @@ export default function OCRUpload() {
             style={{ display: 'none' }} 
             onChange={handleFileUpload}
           />
-          <Upload size={32} style={{ color: 'var(--color-primary)', marginBottom: '12px' }} />
-          <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Select Invoice PDF or Image</strong>
-          <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Supports PNG, JPEG, PDF up to 5MB</span>
+          <Upload size={36} className="text-primary" style={{ marginBottom: '12px' }} />
+          <strong className="text-sm" style={{ display: 'block', marginBottom: '4px' }}>Upload Supplier Invoice</strong>
+          <span className="text-xs text-muted">Supports PDF, PNG, JPEG up to 5MB</span>
         </form>
 
-        <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '12px', borderRadius: '10px', display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--color-primary)' }}>
+        <div className="bg-primary-light" style={{ padding: '12px', borderRadius: '8px', display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--color-primary)' }}>
           <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-          <span>Powered by Tesseract OCR Engine & Gemini Intelligence extractor. Accuracy rating ~94%.</span>
+          <span>Ingestion Engine: OCR Line-item Auto Mapper enabled.</span>
         </div>
       </div>
 
-      {/* Right: Scan View & Extracted Results */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Right Panel: Scanning View & Parsed Ledger */}
+      <div className="flex-col gap-md">
         
+        {/* Real-time scanning animation overlay */}
         {isScanning && (
-          <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div className="live-pulse" style={{ width: '40px', height: '40px', marginBottom: '24px' }}></div>
-            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '6px' }}>Processing OCR Document</h4>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Locating receipt boundary boxes, running character recognitions, and parsing database schemas...</p>
+          <div className="card text-center" style={{ padding: '60px 20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{
+              width: '100%',
+              height: '160px',
+              border: '1px dashed var(--color-border)',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              position: 'relative',
+              margin: '0 auto 24px auto',
+              maxWidth: '240px',
+              overflow: 'hidden'
+            }}>
+              <FileText size={48} className="text-muted" style={{ position: 'absolute', top: 'calc(50% - 24px)', left: 'calc(50% - 24px)' }} />
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                width: '100%',
+                height: '4px',
+                backgroundColor: 'var(--color-primary)',
+                boxShadow: '0 0 12px var(--color-primary)',
+                animation: 'ocrLaserScan 2s infinite ease-in-out'
+              }}></div>
+            </div>
+            
+            {/* Scanning Keyframe definitions */}
+            <style>{`
+              @keyframes ocrLaserScan {
+                0% { top: 0%; }
+                50% { top: 100%; }
+                100% { top: 0%; }
+              }
+            `}</style>
+            
+            <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '6px' }}>Processing Document</h4>
+            <p className="text-sm text-muted">Segmenting lines, classifying character blocks, and parsing wholesaler ledger rates...</p>
           </div>
         )}
 
+        {/* Empty state */}
         {!isScanning && !ocrResult && !fileSelected && (
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px', height: '100%', color: 'var(--color-text-muted)', textAlign: 'center', gap: '12px' }}>
-            <FileText size={48} />
-            <p style={{ fontSize: '0.85rem' }}>No invoice uploaded. Drag and drop your wholesaler invoice file on the left container to start.</p>
+          <div className="card flex-col flex-center text-muted text-center" style={{ padding: '80px 40px', justifyContent: 'center', minHeight: '340px' }}>
+            <FileText size={54} style={{ marginBottom: '12px' }} />
+            <p className="text-sm">No active invoice. Upload a purchase receipt on the left portal to inspect character matches.</p>
           </div>
         )}
 
+        {/* OCR Parsed Ledger Results */}
         {ocrResult && !isScanning && (
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '14px' }}>
+          <div className="card flex-col gap-md">
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '14px' }}>
               <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>OCR Extracted Ledger</h4>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Document: {ocrResult.invoiceNumber} | Extracted on: {ocrResult.date}</div>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800 }}>OCR Extracted Ledger</h4>
+                <div className="text-xs text-muted" style={{ marginTop: '2px' }}>Invoice Ref: {ocrResult.invoiceNumber} | Ingested on: {ocrResult.date}</div>
               </div>
-              <span className="badge badge-success">Confidence: {ocrResult.confidenceScore}%</span>
+              <span className="badge" style={{ backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>Confidence: {ocrResult.confidenceScore}%</span>
             </div>
 
-            {/* Extracted items checklist */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="flex-col gap-sm">
               {ocrResult.items.map((item, idx) => (
-                <div key={idx} style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={idx} className="flex-between" style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
                   <div>
-                    <strong style={{ fontSize: '0.85rem' }}>{item.name}</strong>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Wholesale Rate: ₹{item.price} | Category: {item.category}</div>
+                    <strong className="text-sm">{item.name}</strong>
+                    <div className="text-xs text-muted" style={{ marginTop: '2px' }}>Wholesale Rate: ₹{item.price} | Category: {item.category}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>+ {item.quantity} Units</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--color-success)' }}>OCR Match: {item.confidence}%</div>
-                    </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>+ {item.quantity} Units</div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--color-success)', fontWeight: 600 }}>Map Confidence: {item.confidence}%</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Import Status feedback */}
             {syncDone ? (
-              <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '14px', borderRadius: '10px', display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
+              <div className="bg-primary-light" style={{ padding: '14px', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
                 <CheckCircle2 size={20} />
-                <span>Successfully imported OCR items to store inventory! Redirection to stock page.</span>
+                <span>Success: Stock levels reconciled into local inventory logs.</span>
               </div>
             ) : (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+              <div className="flex-row" style={{ justifyContent: 'flex-end', borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '8px' }}>
                 <button className="btn btn-outline" onClick={() => setOcrResult(null)}>
-                  Discard
+                  Discard Ledger
                 </button>
                 <button 
                   className="btn btn-primary" 
                   onClick={handleImportToInventory}
                   disabled={isSyncing}
                 >
-                  {isSyncing ? 'Syncing stock...' : 'Confirm and Import Stock'} <ChevronRight size={16} />
+                  {isSyncing ? 'Synchronizing catalog...' : 'Accept Ledger & Import'} <ChevronRight size={16} />
                 </button>
               </div>
             )}

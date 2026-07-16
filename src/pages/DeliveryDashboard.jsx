@@ -88,10 +88,6 @@ export default function DeliveryDashboard() {
   const handleVerifyOtpAndDeliver = async (e) => {
     e.preventDefault();
     setOtpError('');
-    if (otpCode !== '1234') {
-      setOtpError('Invalid OTP verification code. Hint: Use 1234');
-      return;
-    }
 
     try {
       const res = await fetch(`/api/orders/${showOtpModal}/status`, {
@@ -100,16 +96,20 @@ export default function DeliveryDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status: 'delivered' })
+        body: JSON.stringify({ status: 'delivered', otp: otpCode })
       });
       if (res.ok) {
         setShowOtpModal(null);
         setOtpCode('');
         fetchDeliveryData();
         fetchActiveOrders();
+      } else {
+        const errData = await res.json();
+        setOtpError(errData.message || 'Invalid OTP code. Please try again.');
       }
     } catch (err) {
       console.error(err);
+      setOtpError('Failed to complete delivery. Check connection.');
     }
   };
 
@@ -281,7 +281,7 @@ export default function DeliveryDashboard() {
       )}
 
       {/* Layout split: Deliveries list vs Wallet History */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '30px', alignItems: 'start' }}>
+      <div className="dashboard-grid">
         
         {/* Deliveries Feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

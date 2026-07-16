@@ -64,8 +64,10 @@ const seedDatabaseIfNeeded = async () => {
             role: u.role,
             phone: u.phone || '',
             store_id: u.storeId || null,
+            is_approved: u.isApproved !== false,
             created_at: u.createdAt || new Date().toISOString()
           }));
+
           const { error: uErr } = await supabase.from('users').insert(formattedUsers);
           if (uErr) console.error("Error seeding users:", uErr);
         }
@@ -149,7 +151,9 @@ const readLocalDB = () => {
     const data = JSON.parse(fs.readFileSync(LOCAL_DB_PATH, 'utf8'));
     if (!data.suppliers) data.suppliers = [];
     if (!data.purchaseOrders) data.purchaseOrders = [];
+    if (!data.coopRequests) data.coopRequests = [];
     return data;
+
   } catch (e) {
     console.error("Error reading local DB", e);
     return {
@@ -209,6 +213,15 @@ const translateQuery = (supabaseQuery, queryObj) => {
     else if (key === 'orderNumber') dbKey = 'order_number';
     else if (key === 'expectedDeliveryDate') dbKey = 'expected_delivery_date';
     else if (key === 'paymentStatus') dbKey = 'payment_status';
+    else if (key === 'deliveryOtp') dbKey = 'delivery_otp';
+    else if (key === 'isApproved') dbKey = 'is_approved';
+    else if (key === 'storeName') dbKey = 'store_name';
+
+
+    else if (key === 'productName') dbKey = 'product_name';
+    else if (key === 'targetStoreId') dbKey = 'target_store_id';
+    else if (key === 'targetStoreName') dbKey = 'target_store_name';
+
 
     let val = queryObj[key];
     if (val !== undefined && val !== null) {
@@ -238,9 +251,11 @@ const formatUser = (u) => {
     role: u.role,
     phone: u.phone,
     storeId: u.store_id,
+    isApproved: u.is_approved === undefined || u.is_approved === null ? true : u.is_approved,
     createdAt: u.created_at
   };
 };
+
 
 const formatStore = (s) => {
   if (!s) return null;
@@ -297,9 +312,11 @@ const formatOrder = (o) => {
     paymentStatus: o.payment_status,
     shippingAddress: o.shipping_address,
     isOptimized: o.is_optimized,
+    deliveryOtp: o.delivery_otp || o.deliveryOtp,
     createdAt: o.created_at
   };
 };
+
 
 const formatWallet = (w) => {
   if (!w) return null;
@@ -349,6 +366,23 @@ const formatPurchaseOrder = (po) => {
   };
 };
 
+const formatCoopRequest = (cr) => {
+  if (!cr) return null;
+  return {
+    _id: cr.id || cr._id,
+    storeId: cr.store_id || cr.storeId,
+    storeName: cr.store_name || cr.storeName,
+    productId: cr.product_id || cr.productId,
+    productName: cr.product_name || cr.productName,
+    quantity: cr.quantity,
+    status: cr.status || 'pending',
+    targetStoreId: cr.target_store_id || cr.targetStoreId,
+    targetStoreName: cr.target_store_name || cr.targetStoreName,
+    createdAt: cr.created_at || cr.createdAt
+  };
+};
+
+
 // Extracts updates and maps them to database column names
 const extractUpdateFields = (update) => {
   const data = update.$set || update;
@@ -370,7 +404,15 @@ const extractUpdateFields = (update) => {
     else if (key === 'supplierId') dbKey = 'supplier_id';
     else if (key === 'orderNumber') dbKey = 'order_number';
     else if (key === 'expectedDeliveryDate') dbKey = 'expected_delivery_date';
+    else if (key === 'deliveryOtp') dbKey = 'delivery_otp';
+    else if (key === 'isApproved') dbKey = 'is_approved';
+    else if (key === 'storeName') dbKey = 'store_name';
+
+    else if (key === 'productName') dbKey = 'product_name';
+    else if (key === 'targetStoreId') dbKey = 'target_store_id';
+    else if (key === 'targetStoreName') dbKey = 'target_store_name';
     else if (key === 'location' && typeof data[key] === 'object') {
+
       res['lat'] = data[key].lat;
       res['lng'] = data[key].lng;
       continue;
@@ -843,6 +885,147 @@ export const db = {
         return { nModified: filtered.length };
       }
     }
+  },
+  coopRequests: {
+    find: async (query = {}) => {
+      try {
+        let q = supabase.from('coop_requests').select('*').order('created_at', { ascending: false });
+        q = translateQuery(q, query);
+        const { data, error } = await q;
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return (data || []).map(formatCoopRequest);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for coopRequests.find:", err.message);
+        const local = readLocalDB();
+        if (!local.coopRequests || local.coopRequests.length === 0) {
+          local.coopRequests = [
+            {
+              _id: 'coop-1',
+              storeId: '60d5ec49867c293444747b12',
+              storeName: 'Gupta Provision Store',
+              productId: '60d5ec49867c293444747b21',
+              productName: 'Amul Gold Milk (1L)',
+              quantity: 15,
+              status: 'pending',
+              createdAt: new Date(Date.now() - 3600000).toISOString()
+            },
+            {
+              _id: 'coop-2',
+              storeId: '60d5ec49867c293444747b13',
+              storeName: 'Daily Needs Super Store',
+              productId: '60d5ec49867c293444747b22',
+              productName: 'Britannia Premium Bread',
+              quantity: 8,
+              status: 'pending',
+              createdAt: new Date(Date.now() - 7200000).toISOString()
+            }
+          ];
+          writeLocalDB(local);
+        }
+        return filterLocal(local.coopRequests, query);
+      }
+    },
+    findOne: async (query = {}) => {
+      try {
+        let q = supabase.from('coop_requests').select('*');
+        q = translateQuery(q, query);
+        const { data, error } = await q.limit(1);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return data && data.length > 0 ? formatCoopRequest(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for coopRequests.findOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.coopRequests, query);
+        return filtered.length > 0 ? filtered[0] : null;
+      }
+    },
+    findById: async (id) => {
+      try {
+        const { data, error } = await supabase.from('coop_requests').select('*').eq('id', id.toString()).limit(1);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return data && data.length > 0 ? formatCoopRequest(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for coopRequests.findById:", err.message);
+        const local = readLocalDB();
+        return local.coopRequests.find(cr => String(cr._id) === String(id) || String(cr.id) === String(id)) || null;
+      }
+    },
+    create: async (data) => {
+      const id = generateId();
+      const dbData = {
+        id,
+        store_id: data.storeId,
+        store_name: data.storeName,
+        product_id: data.productId,
+        product_name: data.productName,
+        quantity: data.quantity,
+        status: data.status || 'pending',
+        target_store_id: data.targetStoreId || null,
+        target_store_name: data.targetStoreName || null,
+        created_at: new Date().toISOString()
+      };
+      try {
+        const { error } = await supabase.from('coop_requests').insert(dbData);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return formatCoopRequest(dbData);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for coopRequests.create:", err.message);
+        const local = readLocalDB();
+        const newReq = {
+          _id: id,
+          id,
+          storeId: data.storeId,
+          storeName: data.storeName,
+          productId: data.productId,
+          productName: data.productName,
+          quantity: data.quantity,
+          status: data.status || 'pending',
+          targetStoreId: data.targetStoreId || null,
+          targetStoreName: data.targetStoreName || null,
+          createdAt: new Date().toISOString()
+        };
+        if (!local.coopRequests) local.coopRequests = [];
+        local.coopRequests.push(newReq);
+        writeLocalDB(local);
+        return newReq;
+      }
+    },
+    updateOne: async (query, update) => {
+      const fields = extractUpdateFields(update);
+      try {
+        let q = supabase.from('coop_requests').update(fields);
+        q = translateQuery(q, query);
+        const { error } = await q;
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return { nModified: 1 };
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for coopRequests.updateOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.coopRequests, query);
+        const setFields = update.$set || update;
+        filtered.forEach(cr => {
+          Object.assign(cr, setFields);
+        });
+        writeLocalDB(local);
+        return { nModified: filtered.length };
+      }
+    }
   }
 };
+
 

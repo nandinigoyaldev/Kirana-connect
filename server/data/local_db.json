@@ -469,5 +469,31 @@
       "createdAt": "2026-07-16T12:51:48.308Z",
       "updatedAt": "2026-07-16T12:51:50.697Z"
     }
+  ],
+  "coopRequests": [
+    {
+      "_id": "coop-1",
+      "storeId": "60d5ec49867c293444747b12",
+      "storeName": "Gupta Provision Store",
+      "productId": "60d5ec49867c293444747b21",
+      "productName": "Amul Gold Milk (1L)",
+      "quantity": 15,
+      "status": "accepted",
+      "createdAt": "2026-07-16T11:57:19.630Z",
+      "targetStoreId": "60d5ec49867c293444747b11",
+      "targetStoreName": "Kumar Kirana Store"
+    },
+    {
+      "_id": "coop-2",
+      "storeId": "60d5ec49867c293444747b13",
+      "storeName": "Daily Needs Super Store",
+      "productId": "60d5ec49867c293444747b22",
+      "productName": "Britannia Premium Bread",
+      "quantity": 8,
+      "status": "accepted",
+      "createdAt": "2026-07-16T10:57:19.630Z",
+      "targetStoreId": "60d5ec49867c293444747b11",
+      "targetStoreName": "Kumar Kirana Store"
+    }
   ]
 }

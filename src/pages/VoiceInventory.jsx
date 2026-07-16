@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mic, MicOff, Volume2, Sparkles, CheckCircle2, ChevronRight, CornerDownRight, Play } from 'lucide-react';
+import { Mic, MicOff, Volume2, Sparkles, CheckCircle2, ChevronRight, CornerDownRight, Play, Terminal } from 'lucide-react';
 
 export default function VoiceInventory() {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ export default function VoiceInventory() {
       setTranscript(randomCommand);
       setIsRecording(false);
       handleProcessVoiceCommand(randomCommand);
-    }, 2500);
+    }, 2200);
   };
 
   const handleProcessVoiceCommand = async (spokenText) => {
@@ -96,7 +96,6 @@ export default function VoiceInventory() {
     if (!nlpResult) return;
     setIsProcessing(true);
     try {
-      // Fetch current stock from inventory
       const storeId = user?.storeId || '60d5ec49867c293444747b11';
       const invRes = await fetch(`/api/inventory/store/${storeId}`);
       const invData = await invRes.json();
@@ -131,19 +130,19 @@ export default function VoiceInventory() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '30px' }}>
+    <div className="split-layout-wide-left">
       
-      {/* Left panel: Mic Dictator */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '30px' }}>
-        <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', color: 'var(--color-primary)', marginBottom: '16px' }}>
+      {/* Left Panel: Mic Command Center */}
+      <div className="card flex-col flex-center text-center" style={{ padding: '30px' }}>
+        <div className="icon-container bg-primary-light" style={{ marginBottom: '16px' }}>
           <Volume2 size={24} />
         </div>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Multilingual Voice Updates</h3>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: '24px' }}>
-          Tap the microphone, dictate stock updates in Hindi, English or Hinglish, and watch AI parse and apply them instantly.
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '8px' }}>Multilingual Stock Logs</h3>
+        <p className="text-sm text-muted" style={{ marginBottom: '24px', lineHeight: 1.5 }}>
+          Tap the microphone and state stock changes in English, Hindi, or Hinglish (e.g. "Add 10 packets of milk").
         </p>
 
-        {/* Mic Circle */}
+        {/* Microphone Ingestion Circle */}
         <button 
           onClick={handleStartRecording}
           disabled={isRecording || isProcessing}
@@ -156,8 +155,8 @@ export default function VoiceInventory() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 10px 25px -5px rgba(22, 163, 74, 0.4)',
-            border: '4px solid white',
+            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)',
+            border: '4px solid var(--color-border)',
             cursor: 'pointer',
             transition: 'all var(--transition-normal)',
             transform: isRecording ? 'scale(1.05)' : 'scale(1)',
@@ -168,115 +167,141 @@ export default function VoiceInventory() {
         </button>
 
         {isRecording ? (
-          <div>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-error)' }}>Recoding audio logs...</span>
-            <div className="audio-visualizer" style={{ marginTop: '12px' }}>
-              <div className="visualizer-bar active" style={{ animationDelay: '0.1s' }}></div>
-              <div className="visualizer-bar active" style={{ animationDelay: '0.3s' }}></div>
-              <div className="visualizer-bar active" style={{ animationDelay: '0.5s' }}></div>
-              <div className="visualizer-bar active" style={{ animationDelay: '0.2s' }}></div>
+          <div className="flex-col flex-center">
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-error)' }}>Ingesting audio wave logs...</span>
+            <div style={{ display: 'flex', gap: '4px', marginTop: '12px', height: '20px', alignItems: 'center' }}>
+              <div style={{ width: '4px', height: '16px', backgroundColor: 'var(--color-error)', animation: 'voiceBar 0.8s infinite alternate' }}></div>
+              <div style={{ width: '4px', height: '24px', backgroundColor: 'var(--color-error)', animation: 'voiceBar 0.8s infinite alternate 0.2s' }}></div>
+              <div style={{ width: '4px', height: '12px', backgroundColor: 'var(--color-error)', animation: 'voiceBar 0.8s infinite alternate 0.4s' }}></div>
             </div>
+            <style>{`
+              @keyframes voiceBar {
+                0% { height: 6px; }
+                100% { height: 24px; }
+              }
+            `}</style>
           </div>
         ) : (
-          <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Tap to record voice log</span>
+          <span className="text-sm text-muted font-bold">Tap microphone to dictate</span>
         )}
 
-        {/* Suggested utterances helper */}
+        {/* Fast Action Shortcuts */}
         <div style={{ borderTop: '1px solid var(--color-border)', width: '100%', marginTop: '30px', paddingTop: '20px', textAlign: 'left' }}>
-          <h4 style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '10px' }}>Try Spoken Commands:</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+          <h4 className="text-xs text-muted" style={{ marginBottom: '10px', textTransform: 'uppercase', fontWeight: 700 }}>Dictation Demo Shortcuts</h4>
+          <div className="flex-col gap-sm">
             {sampleCommands.slice(0, 3).map((cmd, i) => (
               <button 
                 key={i} 
+                className="flex-row"
                 onClick={() => { setTranscript(cmd); handleProcessVoiceCommand(cmd); }}
                 style={{ 
                   textAlign: 'left', 
-                  padding: '6px 8px', 
-                  borderRadius: '6px', 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
                   border: '1px solid var(--color-border)', 
-                  backgroundColor: 'var(--color-bg)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
+                  backgroundColor: 'rgba(255,255,255,0.01)',
+                  fontSize: '0.75rem',
+                  color: 'var(--color-text-muted)',
+                  cursor: 'pointer'
                 }}
               >
-                <Play size={10} fill="var(--color-text-muted)" /> {cmd}
+                <Play size={10} fill="var(--color-text-muted)" style={{ color: 'transparent' }} /> {cmd}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Right panel: NLP parsing results */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Right Panel: Parser Diagnostics Log & Output */}
+      <div className="flex-col gap-md">
         
         {isProcessing && (
-          <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div className="card text-center" style={{ padding: '60px 20px' }}>
             <div className="live-pulse" style={{ width: '40px', height: '40px', marginBottom: '24px' }}></div>
-            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '6px' }}>AI Speech Parser running</h4>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Translating speech wave files and tokenizing lexical entities...</p>
+            <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '6px' }}>AI Parser Processing</h4>
+            <p className="text-sm text-muted">Running lexical parser maps, identifying verbs and nouns, and retrieving database indexes...</p>
           </div>
         )}
 
         {!isProcessing && !nlpResult && !isRecording && (
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px', height: '100%', color: 'var(--color-text-muted)', textAlign: 'center', gap: '12px' }}>
-            <Mic size={48} />
-            <p style={{ fontSize: '0.85rem' }}>Microphone inactive. Tap the icon or select a suggested command on the left to test natural speech parsing.</p>
+          <div className="card flex-col flex-center text-muted text-center" style={{ padding: '80px 40px', minHeight: '340px' }}>
+            <Mic size={54} style={{ marginBottom: '12px' }} />
+            <p className="text-sm">Speech parser offline. Tap the mic or choose a demo log shortcut to dictation streams.</p>
           </div>
         )}
 
         {nlpResult && !isProcessing && (
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="flex-col gap-md">
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '14px' }}>
-              <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Speech Parsing Result</h4>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
-                  "{transcript}"
+            {/* Parser Results Card */}
+            <div className="card flex-col gap-md">
+              <div className="flex-between" style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '14px' }}>
+                <div>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Speech Parser Output</h4>
+                  <div className="text-sm font-bold text-primary" style={{ fontStyle: 'italic', marginTop: '4px' }}>
+                    "{transcript}"
+                  </div>
+                </div>
+                <span className="badge" style={{ backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>Confidence: {nlpResult.confidence}%</span>
+              </div>
+
+              {/* Identified Data block */}
+              <div className="flex-col gap-sm">
+                <div className="glass-card flex-row" style={{ padding: '16px', gap: '12px', alignItems: 'center' }}>
+                  <Sparkles size={20} className="text-primary" />
+                  <div>
+                    <div className="text-xs text-muted" style={{ textTransform: 'uppercase', fontWeight: 700 }}>Semantic Explanation</div>
+                    <div className="text-sm font-bold" style={{ marginTop: '2px' }}>{nlpResult.nlpExplanation}</div>
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                  <div>
+                    <div className="text-xs text-muted">Matched Catalog SKU</div>
+                    <strong className="text-md" style={{ color: 'var(--color-text-main)' }}>{nlpResult.product.name}</strong>
+                    <div className="text-xs text-muted" style={{ marginTop: '2px' }}>Category: {nlpResult.product.category}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted">Parsed Intent Action</div>
+                    <strong className="text-md" style={{ color: nlpResult.action === 'decrease' ? 'var(--color-error)' : 'var(--color-primary)', textTransform: 'uppercase' }}>
+                      {nlpResult.action === 'decrease' ? 'Reduce Stock' : 'Add Stock'}
+                    </strong>
+                    <div className="text-sm font-bold" style={{ marginTop: '2px' }}>Adjustment: {nlpResult.quantity} units</div>
+                  </div>
                 </div>
               </div>
-              <span className="badge badge-success">Confidence: {nlpResult.confidence}%</span>
             </div>
 
-            {/* Parsing Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
-              <div className="glass-card" style={{ padding: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <Sparkles size={20} style={{ color: 'var(--color-primary)' }} />
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>AI Semantic Explanation</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-main)', fontWeight: 500 }}>{nlpResult.nlpExplanation}</div>
-                </div>
+            {/* Ingestion Telemetry Console */}
+            <div className="card" style={{ backgroundColor: '#050B14', fontFamily: 'monospace', border: '1px solid #10B981', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px', color: '#10B981' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '6px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Terminal size={12} /> [VYAPAAR LIVE LEXICAL PARSER v1.0.4]</span>
+                <span>STATUS: READY</span>
               </div>
-
-              <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Identified Product</div>
-                  <strong style={{ fontSize: '1rem', color: 'var(--color-text-main)' }}>{nlpResult.product.name}</strong>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Category: {nlpResult.product.category}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Requested Action</div>
-                  <strong style={{ fontSize: '1rem', color: nlpResult.action === 'decrease' ? 'var(--color-error)' : 'var(--color-primary)', textTransform: 'uppercase' }}>
-                    {nlpResult.action === 'decrease' ? 'Reduce Stock' : 'Add Stock'}
-                  </strong>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Qty adjustment: {nlpResult.quantity} {nlpResult.product.unit}s</div>
-                </div>
+              <div style={{ fontSize: '0.8rem', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div>&gt; INGESTING SPEECH UTTERANCE: "{transcript}"</div>
+                <div>&gt; TOKENIZING INPUT STRING... DONE</div>
+                <div>&gt; ACTION CLASSIFIER MATCHED: <span style={{ color: nlpResult.action === 'decrease' ? '#EF4444' : '#10B981', fontWeight: 700 }}>{nlpResult.action.toUpperCase()}</span></div>
+                <div>&gt; DETECTED ENTITY QUANTITY: <span style={{ color: '#FFF' }}>{nlpResult.quantity} units</span></div>
+                <div>&gt; SKU RESOLVER SEARCH: "{nlpResult.product.name}"</div>
+                <div>&gt; RESOLUTION CONFIDENCE SCORE: <span style={{ color: '#FFF' }}>{nlpResult.confidence}% (EXCELLENT)</span></div>
+                <div style={{ color: '#9CA3AF', marginTop: '6px' }}>&gt; Ready to execute database delta update...</div>
               </div>
             </div>
 
+            {/* Confirmation actions */}
             {syncDone ? (
-              <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '14px', borderRadius: '10px', display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
+              <div className="bg-primary-light" style={{ padding: '14px', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
                 <CheckCircle2 size={20} />
-                <span>Successfully updated stock using speech processing logs!</span>
+                <span>Success: Stock levels parsed and catalog record updated.</span>
               </div>
             ) : (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+              <div className="flex-row" style={{ justifyContent: 'flex-end', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
                 <button className="btn btn-outline" onClick={() => setNlpResult(null)}>
-                  Cancel
+                  Discard Ingestion
                 </button>
                 <button className="btn btn-primary" onClick={handleApplyVoiceStock}>
-                  Confirm Voice Log Update <ChevronRight size={16} />
+                  Execute Database Update <ChevronRight size={16} />
                 </button>
               </div>
             )}

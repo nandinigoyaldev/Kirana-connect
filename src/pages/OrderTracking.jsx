@@ -99,7 +99,7 @@ export default function OrderTracking() {
   const activeStep = getStatusStepIndex(order.status);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', height: 'calc(100vh - 120px)' }}>
+    <div className="split-layout-left">
       
       {/* Left Sidebar: Orders directory */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
@@ -139,8 +139,16 @@ export default function OrderTracking() {
               <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Tracking Order #{order._id.substring(0,8)}</h4>
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>Estimated Arrival: 15-20 mins</p>
             </div>
-            <span className="badge badge-success" style={{ fontSize: '0.8rem' }}>{order.status}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+              <span className="badge badge-success" style={{ fontSize: '0.8rem' }}>{order.status}</span>
+              {order.deliveryOtp && order.status === 'picked_up' && (
+                <div style={{ fontSize: '0.75rem', backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px dashed var(--color-primary)', color: 'var(--color-primary)', padding: '4px 8px', borderRadius: '6px', fontWeight: 700, marginTop: '4px' }}>
+                  Delivery Verification OTP: {order.deliveryOtp}
+                </div>
+              )}
+            </div>
           </div>
+
 
           {/* Stepper indicator bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', overflowX: 'auto', padding: '10px 0' }}>

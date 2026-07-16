@@ -90,7 +90,8 @@ app.post('/api/auth/register', async (req, res) => {
       password, // In production, bcrypt.hash this
       role: role || 'customer',
       phone: phone || '',
-      storeId
+      storeId,
+      isApproved: (role === 'customer' || role === 'admin') ? true : false
     });
 
     // Create wallet for delivery partners
@@ -98,8 +99,12 @@ app.post('/api/auth/register', async (req, res) => {
       await db.wallets.create({ userId: user._id, balance: 0, escrowBalance: 0, transactions: [] });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user });
+    if (role === 'customer' || role === 'admin') {
+      const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+      res.status(201).json({ token, user, message: 'Registration successful!' });
+    } else {
+      res.status(201).json({ user, message: 'Registration successful! Your merchant/driver account is pending administrator verification. Please wait for an administrator to approve your account before signing in.' });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -108,12 +113,21 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { email, password, role } = req.body;
   try {
-    const user = await db.users.findOne({ email });
+    let targetEmail = email;
+    if (email === 'admin123') {
+      targetEmail = 'admin123@kiranaconnect.com';
+    }
+
+    const user = await db.users.findOne({ email: targetEmail });
     if (!user || user.password !== password) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
     if (role && user.role !== role) {
       return res.status(400).json({ message: 'Incorrect role selected for this account' });
+    }
+
+    if (user.isApproved === false) {
+      return res.status(403).json({ message: 'Your merchant/driver account is currently pending administrator verification.' });
     }
 
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
@@ -122,6 +136,111 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+app.post('/api/auth/otp/request', async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ message: 'Phone number is required' });
+
+  try {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    global.activeOtps = global.activeOtps || {};
+    global.activeOtps[phone] = {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    };
+
+    console.log(`🔑 [OTP SERVICE] Generated OTP for ${phone}: ${otp}`);
+
+    res.json({ message: 'OTP sent successfully (Simulated)', otp });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/auth/otp/verify', async (req, res) => {
+  const { phone, otp, role } = req.body;
+  if (!phone || !otp || !role) {
+    return res.status(400).json({ message: 'Phone number, OTP, and Role are required' });
+  }
+
+  try {
+    const record = global.activeOtps?.[phone];
+    if (!record || record.otp !== otp || record.expiresAt < Date.now()) {
+      return res.status(400).json({ message: 'Invalid or expired verification OTP' });
+    }
+
+    delete global.activeOtps[phone];
+
+    let user = await db.users.findOne({ phone, role });
+    if (!user) {
+      if (role === 'customer') {
+        user = await db.users.create({
+          name: `Guest Customer (${phone.slice(-4)})`,
+          email: `phone_${phone}@kiranaconnect.com`,
+          phone,
+          role: 'customer',
+          password: 'password',
+          isApproved: true
+        });
+      } else {
+        return res.status(400).json({ message: `No registered account found for role ${role} with phone ${phone}` });
+      }
+    }
+
+    if (user.isApproved === false) {
+      return res.status(403).json({ message: 'Your merchant/driver account is currently pending administrator verification.' });
+    }
+
+    const token = jwt.sign({ id: user._id || user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/auth/voice-login', async (req, res) => {
+  const { phrase, role } = req.body;
+  if (!phrase || !role) {
+    return res.status(400).json({ message: 'Speech transcript and role are required' });
+  }
+
+  try {
+    const normPhrase = phrase.toLowerCase().trim();
+    let matchedUser = null;
+
+    // Fetch registered users matching the selected role
+    const users = await db.users.find({ role });
+
+    for (const u of users) {
+      const nameWords = u.name.toLowerCase().split(' ');
+      const matchesName = nameWords.some(word => word.length > 2 && normPhrase.includes(word));
+      
+      if (matchesName || normPhrase.includes(u.email.split('@')[0])) {
+        matchedUser = u;
+        break;
+      }
+    }
+
+    if (!matchedUser) {
+      return res.status(400).json({ 
+        message: `Voice matching failed. No registered account found for role '${role}' matching transcription '${phrase}'.` 
+      });
+    }
+
+    if (matchedUser.isApproved === false) {
+      return res.status(403).json({ message: 'Your merchant/driver account is currently pending administrator verification.' });
+    }
+
+    console.log(`🎤 [VOICE LOGIN SUCCESS] User matched: ${matchedUser.name} (${matchedUser.role})`);
+
+    const token = jwt.sign({ id: matchedUser._id || matchedUser.id, role: matchedUser.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: matchedUser });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
 
 app.get('/api/auth/profile', authenticateToken, (req, res) => {
   res.json({ user: req.user });
@@ -474,23 +593,34 @@ app.put('/api/orders/:orderId/status', authenticateToken, async (req, res) => {
 
     if (status) {
       updateData.status = status;
+
+      // If order picked up, generate verification OTP
+      if (status === 'picked_up') {
+        updateData.deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      }
       
       // If delivery accepting order
       if (status === 'accepted' && req.user.role === 'delivery') {
-        updateData.deliveryPartnerId = req.user._id;
+        updateData.deliveryPartnerId = req.user._id || req.user.id;
         
         // Hold order fee in Escrow
-        const wallet = await db.wallets.findOne({ userId: req.user._id });
+        const wallet = await db.wallets.findOne({ userId: req.user._id || req.user.id });
         if (wallet) {
           await db.wallets.updateOne(
-            { userId: req.user._id },
+            { userId: req.user._id || req.user.id },
             { escrowBalance: wallet.escrowBalance + order.deliveryFee }
           );
         }
       }
 
-      // If order delivered, release escrow money to wallet balance
+      // If order delivered, verify OTP and release escrow money to wallet balance
       if (status === 'delivered') {
+        const { otp } = req.body;
+        const expectedOtp = order.deliveryOtp || '1234';
+        if (otp && otp.toString() !== expectedOtp.toString()) {
+          return res.status(400).json({ message: 'Invalid order delivery OTP verification code.' });
+        }
+
         updateData.paymentStatus = 'paid';
         if (order.deliveryPartnerId) {
           const wallet = await db.wallets.findOne({ userId: order.deliveryPartnerId });
@@ -709,6 +839,29 @@ app.get('/api/admin/metrics', authenticateToken, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+app.get('/api/admin/pending-users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+  try {
+    const allUsers = await db.users.find();
+    const pending = allUsers.filter(u => u.isApproved === false);
+    res.json({ pending });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.put('/api/admin/users/:userId/approve', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+  const { userId } = req.params;
+  try {
+    await db.users.updateOne({ _id: userId }, { isApproved: true });
+    res.json({ message: 'User account has been verified and approved successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 // --- SUPPLIER & PROCUREMENT MANAGEMENT MODULE ---
 
@@ -1128,7 +1281,118 @@ app.get('/api/procurement/analytics', authenticateToken, async (req, res) => {
   }
 });
 
+// --- COOPERATIVE RETAILER SHARE NETWORK APIs ---
+
+app.get('/api/coop/requests', authenticateToken, async (req, res) => {
+  try {
+    const requests = await db.coopRequests.find();
+    res.json({ requests });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/coop/request', authenticateToken, async (req, res) => {
+  const storeId = req.user.storeId;
+  if (!storeId) return res.status(400).json({ message: 'User does not manage a store' });
+
+  const { productId, productName, quantity } = req.body;
+  if (!productId || !quantity) return res.status(400).json({ message: 'Product and quantity are required' });
+
+  try {
+    const store = await db.stores.findById(storeId);
+    const newReq = await db.coopRequests.create({
+      storeId,
+      storeName: store ? store.name : 'Friendly Kirana Store',
+      productId,
+      productName: productName || 'Retail Item',
+      quantity: Number(quantity),
+      status: 'pending'
+    });
+
+    io.emit('coop_request_created', newReq);
+
+    res.status(201).json({ request: newReq });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/coop/request/:id/respond', authenticateToken, async (req, res) => {
+  const storeId = req.user.storeId;
+  if (!storeId) return res.status(400).json({ message: 'User does not manage a store' });
+
+  const { status } = req.body; // 'accepted' or 'declined'
+  const reqId = req.params.id;
+
+  try {
+    const coopReq = await db.coopRequests.findById(reqId);
+    if (!coopReq) return res.status(404).json({ message: 'Co-op request not found' });
+    if (coopReq.status !== 'pending') return res.status(400).json({ message: 'Co-op request has already been processed' });
+
+    if (status === 'accepted') {
+      const lenderInv = await db.inventory.findOne({ storeId, productId: coopReq.productId });
+      if (!lenderInv || lenderInv.stock < coopReq.quantity) {
+        return res.status(400).json({ message: 'Insufficient stock in your inventory to lend this quantity' });
+      }
+
+      const nextLenderStock = Math.max(0, lenderInv.stock - coopReq.quantity);
+      await db.inventory.updateOne({ storeId, productId: coopReq.productId }, { stock: nextLenderStock });
+      
+      io.emit('stock_updated', {
+        storeId,
+        productId: coopReq.productId,
+        stock: nextLenderStock,
+        price: lenderInv.price
+      });
+
+      const borrowerInv = await db.inventory.findOne({ storeId: coopReq.storeId, productId: coopReq.productId });
+      let nextBorrowerStock = coopReq.quantity;
+      if (borrowerInv) {
+        nextBorrowerStock = borrowerInv.stock + coopReq.quantity;
+        await db.inventory.updateOne({ storeId: coopReq.storeId, productId: coopReq.productId }, { stock: nextBorrowerStock });
+      } else {
+        await db.inventory.create({
+          storeId: coopReq.storeId,
+          productId: coopReq.productId,
+          stock: nextBorrowerStock,
+          price: lenderInv.price,
+          isAvailable: true
+        });
+      }
+
+      io.emit('stock_updated', {
+        storeId: coopReq.storeId,
+        productId: coopReq.productId,
+        stock: nextBorrowerStock,
+        price: lenderInv.price
+      });
+
+      const store = await db.stores.findById(storeId);
+      await db.coopRequests.updateOne(
+        { id: reqId },
+        { 
+          status: 'accepted', 
+          targetStoreId: storeId, 
+          targetStoreName: store ? store.name : 'Lender Store' 
+        }
+      );
+    } else {
+      await db.coopRequests.updateOne({ id: reqId }, { status: 'declined' });
+    }
+
+    const refreshed = await db.coopRequests.findById(reqId);
+    
+    io.emit('coop_request_updated', refreshed);
+
+    res.json({ message: `Co-op request ${status} successfully`, request: refreshed });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Start Database and then Express server
+
 connectDB().then(() => {
   server.listen(PORT, () => {
     console.log(`🚀 Kirana Connect server listening on port ${PORT}`);

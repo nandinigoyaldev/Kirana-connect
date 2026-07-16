@@ -104,9 +104,45 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
+  
+  const loginWithOtp = async (phone, otp, role) => {
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp, role })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'OTP verification failed');
+      setToken(data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      console.error("OTP verification error:", err);
+      throw err;
+    }
+  };
+
+  const loginWithVoice = async (phrase, role) => {
+    try {
+      const res = await fetch('/api/auth/voice-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phrase, role })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Voice verification failed');
+      setToken(data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      console.error("Voice matching login error:", err);
+      throw err;
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, switchRole, setUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithOtp, loginWithVoice, register, logout, switchRole, setUser }}>
       {children}
     </AuthContext.Provider>
   );

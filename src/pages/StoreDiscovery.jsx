@@ -50,7 +50,7 @@ export default function StoreDiscovery() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', height: 'calc(100vh - 120px)' }}>
+    <div className="dashboard-grid" style={{ height: 'calc(100vh - 120px)' }}>
       
       {/* Grid Map Simulator (Left) */}
       <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: 0, height: '100%', backgroundColor: '#e2e8f0', display: 'flex', flexDirection: 'column' }}>

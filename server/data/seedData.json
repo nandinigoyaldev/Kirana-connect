@@ -7,6 +7,7 @@
       "password": "password",
       "role": "customer",
       "phone": "+91 98765 43210",
+      "isApproved": true,
       "createdAt": "2026-07-01T12:00:00.000Z"
     },
     {
@@ -17,6 +18,7 @@
       "role": "shopkeeper",
       "phone": "+91 87654 32109",
       "storeId": "60d5ec49867c293444747b11",
+      "isApproved": true,
       "createdAt": "2026-07-01T12:00:00.000Z"
     },
     {
@@ -27,6 +29,7 @@
       "role": "shopkeeper",
       "phone": "+91 76543 21098",
       "storeId": "60d5ec49867c293444747b12",
+      "isApproved": true,
       "createdAt": "2026-07-02T12:00:00.000Z"
     },
     {
@@ -36,6 +39,7 @@
       "password": "password",
       "role": "delivery",
       "phone": "+91 65432 10987",
+      "isApproved": true,
       "createdAt": "2026-07-02T12:00:00.000Z"
     },
     {
@@ -45,7 +49,18 @@
       "password": "password",
       "role": "admin",
       "phone": "+91 99999 88888",
+      "isApproved": true,
       "createdAt": "2026-07-01T12:00:00.000Z"
+    },
+    {
+      "_id": "60d5ec49867c293444747b06",
+      "name": "Demo Admin",
+      "email": "admin123@kiranaconnect.com",
+      "password": "admin123",
+      "role": "admin",
+      "phone": "+91 12345 67890",
+      "isApproved": true,
+      "createdAt": "2026-07-16T12:00:00.000Z"
     }
   ],
   "stores": [

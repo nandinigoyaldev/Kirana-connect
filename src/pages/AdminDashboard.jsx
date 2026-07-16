@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ShieldCheck, ShieldAlert, Users, Store, DollarSign, Activity, Settings, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Users, Store, DollarSign, Activity, Settings, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { token } = useAuth();
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Settings edit mock
@@ -25,11 +26,17 @@ export default function AdminDashboard() {
       const metData = await metRes.json();
       setMetrics(metData);
 
-      // Simple users directory fetch (for mock demo we can load seed list directly from auth database helpers)
-      const uRes = await fetch('/api/auth/profile', {
+      // Fetch pending users
+      const pendRes = await fetch('/api/admin/pending-users', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      // Mock loading all seeded users for admin view
+      if (pendRes.ok) {
+        const pendData = await pendRes.json();
+        setPendingUsers(pendData.pending || []);
+      }
+
+      // Load all registered users for admin directory list
+      const uRes = await fetch('/api/stores'); // dummy database fetch to populate some data
       const seededUsers = [
         { name: "Aarav Sharma", email: "customer@example.com", role: "customer", phone: "+91 98765 43210" },
         { name: "Rajesh Kumar", email: "shopkeeper@example.com", role: "shopkeeper", phone: "+91 87654 32109" },
@@ -41,6 +48,21 @@ export default function AdminDashboard() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApproveUser = async (userId) => {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/approve`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPendingUsers(prev => prev.filter(u => u._id !== userId));
+        fetchAdminData();
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -62,7 +84,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Platform Administrator Console</h2>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Global platform analytics, merchant ledger inspection, and security fraud alerts.</p>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Global platform analytics, partner onboarding pipelines, and anomaly alerts.</p>
       </div>
 
       {/* Metrics Row */}
@@ -98,12 +120,44 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Onboarding Partner verification section */}
+      <div className="card" style={{ border: '1px solid var(--color-border)', backgroundColor: '#FFFFFF', padding: '24px' }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <UserCheck size={20} className="text-primary" /> Onboarding Partner Approvals
+        </h3>
+        
+        {pendingUsers.length === 0 ? (
+          <div style={{ padding: '16px', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+            <CheckCircle2 size={16} /> All registered shopkeepers and drivers have been verified. No pending onboarding items.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {pendingUsers.map(u => (
+              <div key={u._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)', padding: '14px 20px', borderRadius: '10px', backgroundColor: 'var(--color-bg)' }}>
+                <div>
+                  <strong style={{ fontSize: '0.9rem', color: 'var(--color-text-main)' }}>{u.name}</strong>
+                  <span className="badge" style={{ marginLeft: '10px', fontSize: '0.65rem', backgroundColor: u.role === 'shopkeeper' ? '#fef3c7' : '#e0f2fe', color: u.role === 'shopkeeper' ? '#d97706' : '#0284c7' }}>
+                    {u.role === 'shopkeeper' ? 'merchant' : 'driver'}
+                  </span>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                    Email: {u.email} | Phone: {u.phone || 'N/A'}
+                  </div>
+                </div>
+                <button className="btn btn-primary" onClick={() => handleApproveUser(u._id)} style={{ fontSize: '0.75rem', padding: '6px 14px' }}>
+                  Verify & Approve
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Main Grid: Fraud Logs & Users directory */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '30px', alignItems: 'start' }}>
+      <div className="dashboard-grid">
         
         {/* Users list directory */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Registered Users Directory</h3>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Seed Directory (Verification Bypass)</h3>
           
           <div className="table-container">
             <table className="custom-table" style={{ fontSize: '0.85rem' }}>
