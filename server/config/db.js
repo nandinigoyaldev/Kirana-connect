@@ -126,9 +126,70 @@ const seedDatabaseIfNeeded = async () => {
   }
 };
 
+
 // Unique ID Generator using native Crypto UUID
 export const generateId = () => {
   return crypto.randomUUID();
+};
+
+// --- LOCAL JSON FALLBACK SYSTEM ---
+const LOCAL_DB_PATH = path.join(__dirname, '../data/local_db.json');
+
+const readLocalDB = () => {
+  if (!fs.existsSync(LOCAL_DB_PATH)) {
+    if (fs.existsSync(SEED_DATA_PATH)) {
+      fs.copyFileSync(SEED_DATA_PATH, LOCAL_DB_PATH);
+    } else {
+      fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify({
+        users: [], stores: [], products: [], inventory: [], orders: [], wallets: [], suppliers: [], purchaseOrders: [], purchaseItems: []
+      }, null, 2));
+    }
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(LOCAL_DB_PATH, 'utf8'));
+    if (!data.suppliers) data.suppliers = [];
+    if (!data.purchaseOrders) data.purchaseOrders = [];
+    return data;
+  } catch (e) {
+    console.error("Error reading local DB", e);
+    return {
+      users: [], stores: [], products: [], inventory: [], orders: [], wallets: [], suppliers: [], purchaseOrders: []
+    };
+  }
+};
+
+const writeLocalDB = (data) => {
+  try {
+    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error("Error writing local DB", e);
+  }
+};
+
+const filterLocal = (items, query) => {
+  return items.filter(item => {
+    for (const key in query) {
+      const val = query[key];
+      let itemVal = item[key];
+      if (key === '_id' || key === 'id') {
+        itemVal = item._id || item.id;
+      }
+      
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'object' && val !== null) {
+          if ('$ne' in val) {
+            if (String(itemVal) === String(val.$ne)) return false;
+          } else if ('$in' in val) {
+            const strIn = val.$in.map(v => String(v));
+            if (!strIn.includes(String(itemVal))) return false;
+          }
+        } else {
+          if (String(itemVal) !== String(val)) return false;
+        }
+      }
+    }
+    return true;
+  });
 };
 
 // Query Translator: maps MongoDB camelCase queries to PostgreSQL columns
@@ -144,6 +205,10 @@ const translateQuery = (supabaseQuery, queryObj) => {
     else if (key === 'deliveryPartnerId') dbKey = 'delivery_partner_id';
     else if (key === 'isAvailable') dbKey = 'is_available';
     else if (key === 'isOptimized') dbKey = 'is_optimized';
+    else if (key === 'supplierId') dbKey = 'supplier_id';
+    else if (key === 'orderNumber') dbKey = 'order_number';
+    else if (key === 'expectedDeliveryDate') dbKey = 'expected_delivery_date';
+    else if (key === 'paymentStatus') dbKey = 'payment_status';
 
     let val = queryObj[key];
     if (val !== undefined && val !== null) {
@@ -247,6 +312,43 @@ const formatWallet = (w) => {
   };
 };
 
+const formatSupplier = (s) => {
+  if (!s) return null;
+  return {
+    _id: s.id,
+    name: s.name,
+    phone: s.phone,
+    email: s.email,
+    GSTIN: s.gstin,
+    address: s.address,
+    category: s.category,
+    notes: s.notes,
+    active: s.active,
+    createdAt: s.created_at,
+    updatedAt: s.updated_at
+  };
+};
+
+const formatPurchaseOrder = (po) => {
+  if (!po) return null;
+  return {
+    _id: po.id,
+    storeId: po.store_id,
+    supplierId: po.supplier_id,
+    orderNumber: po.order_number,
+    status: po.status,
+    expectedDeliveryDate: po.expected_delivery_date,
+    subtotal: po.subtotal,
+    tax: po.tax,
+    total: po.total,
+    paymentStatus: po.payment_status,
+    notes: po.notes,
+    items: po.items || [],
+    createdAt: po.created_at,
+    updatedAt: po.updated_at
+  };
+};
+
 // Extracts updates and maps them to database column names
 const extractUpdateFields = (update) => {
   const data = update.$set || update;
@@ -265,6 +367,9 @@ const extractUpdateFields = (update) => {
     else if (key === 'shippingAddress') dbKey = 'shipping_address';
     else if (key === 'isOptimized') dbKey = 'is_optimized';
     else if (key === 'escrowBalance') dbKey = 'escrow_balance';
+    else if (key === 'supplierId') dbKey = 'supplier_id';
+    else if (key === 'orderNumber') dbKey = 'order_number';
+    else if (key === 'expectedDeliveryDate') dbKey = 'expected_delivery_date';
     else if (key === 'location' && typeof data[key] === 'object') {
       res['lat'] = data[key].lat;
       res['lng'] = data[key].lng;
@@ -494,5 +599,250 @@ export const db = {
       if (error) throw error;
       return { nModified: 1 };
     }
+  },
+  suppliers: {
+    find: async (query = {}) => {
+      try {
+        let q = supabase.from('suppliers').select('*');
+        q = translateQuery(q, query);
+        const { data, error } = await q;
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return (data || []).map(formatSupplier);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for suppliers.find:", err.message);
+        const local = readLocalDB();
+        return filterLocal(local.suppliers, query);
+      }
+    },
+    findOne: async (query = {}) => {
+      try {
+        let q = supabase.from('suppliers').select('*');
+        q = translateQuery(q, query);
+        const { data, error } = await q.limit(1);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return data && data.length > 0 ? formatSupplier(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for suppliers.findOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.suppliers, query);
+        return filtered.length > 0 ? filtered[0] : null;
+      }
+    },
+    findById: async (id) => {
+      try {
+        const { data, error } = await supabase.from('suppliers').select('*').eq('id', id.toString()).limit(1);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return data && data.length > 0 ? formatSupplier(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for suppliers.findById:", err.message);
+        const local = readLocalDB();
+        return local.suppliers.find(s => String(s._id) === String(id) || String(s.id) === String(id)) || null;
+      }
+    },
+    create: async (data) => {
+      const id = generateId();
+      const dbData = {
+        id,
+        name: data.name,
+        phone: data.phone || '',
+        email: data.email || '',
+        gstin: data.GSTIN || '',
+        address: data.address || '',
+        category: data.category || '',
+        notes: data.notes || '',
+        active: data.active !== false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      try {
+        const { error } = await supabase.from('suppliers').insert(dbData);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return formatSupplier(dbData);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for suppliers.create:", err.message);
+        const local = readLocalDB();
+        const newSupplier = {
+          _id: id,
+          id,
+          name: data.name,
+          phone: data.phone || '',
+          email: data.email || '',
+          GSTIN: data.GSTIN || '',
+          address: data.address || '',
+          category: data.category || '',
+          notes: data.notes || '',
+          active: data.active !== false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        local.suppliers.push(newSupplier);
+        writeLocalDB(local);
+        return newSupplier;
+      }
+    },
+    updateOne: async (query, update) => {
+      const fields = extractUpdateFields(update);
+      fields.updated_at = new Date().toISOString();
+      try {
+        let q = supabase.from('suppliers').update(fields);
+        q = translateQuery(q, query);
+        const { error } = await q;
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return { nModified: 1 };
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for suppliers.updateOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.suppliers, query);
+        const setFields = update.$set || update;
+        filtered.forEach(s => {
+          Object.assign(s, setFields);
+          if (setFields.GSTIN !== undefined) s.GSTIN = setFields.GSTIN;
+          s.updatedAt = new Date().toISOString();
+        });
+        writeLocalDB(local);
+        return { nModified: filtered.length };
+      }
+    }
+  },
+  purchaseOrders: {
+    find: async (query = {}) => {
+      try {
+        let q = supabase.from('purchase_orders').select('*').order('created_at', { ascending: false });
+        q = translateQuery(q, query);
+        const { data, error } = await q;
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return (data || []).map(formatPurchaseOrder);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for purchaseOrders.find:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.purchaseOrders, query);
+        return filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+    },
+    findOne: async (query = {}) => {
+      try {
+        let q = supabase.from('purchase_orders').select('*');
+        q = translateQuery(q, query);
+        const { data, error } = await q.limit(1);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return data && data.length > 0 ? formatPurchaseOrder(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for purchaseOrders.findOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.purchaseOrders, query);
+        return filtered.length > 0 ? filtered[0] : null;
+      }
+    },
+    findById: async (id) => {
+      try {
+        const { data, error } = await supabase.from('purchase_orders').select('*').eq('id', id.toString()).limit(1);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return data && data.length > 0 ? formatPurchaseOrder(data[0]) : null;
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for purchaseOrders.findById:", err.message);
+        const local = readLocalDB();
+        return local.purchaseOrders.find(po => String(po._id) === String(id) || String(po.id) === String(id)) || null;
+      }
+    },
+    create: async (data) => {
+      const id = generateId();
+      const dbData = {
+        id,
+        store_id: data.storeId,
+        supplier_id: data.supplierId,
+        order_number: data.orderNumber,
+        status: data.status || 'draft',
+        expected_delivery_date: data.expectedDeliveryDate,
+        subtotal: data.subtotal || 0,
+        tax: data.tax || 0,
+        total: data.total || 0,
+        payment_status: data.paymentStatus || 'pending',
+        notes: data.notes || '',
+        items: data.items || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      try {
+        const { error } = await supabase.from('purchase_orders').insert(dbData);
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return formatPurchaseOrder(dbData);
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for purchaseOrders.create:", err.message);
+        const local = readLocalDB();
+        const newPO = {
+          _id: id,
+          id,
+          storeId: data.storeId,
+          supplierId: data.supplierId,
+          orderNumber: data.orderNumber,
+          status: data.status || 'draft',
+          expectedDeliveryDate: data.expectedDeliveryDate,
+          subtotal: data.subtotal || 0,
+          tax: data.tax || 0,
+          total: data.total || 0,
+          paymentStatus: data.paymentStatus || 'pending',
+          notes: data.notes || '',
+          items: data.items || [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        local.purchaseOrders.push(newPO);
+        writeLocalDB(local);
+        return newPO;
+      }
+    },
+    updateOne: async (query, update) => {
+      const fields = extractUpdateFields(update);
+      fields.updated_at = new Date().toISOString();
+      try {
+        let q = supabase.from('purchase_orders').update(fields);
+        q = translateQuery(q, query);
+        const { error } = await q;
+        if (error) {
+          if (error.code === 'PGRST205') throw new Error('Table not found');
+          throw error;
+        }
+        return { nModified: 1 };
+      } catch (err) {
+        console.warn("⚠️ Using local fallback for purchaseOrders.updateOne:", err.message);
+        const local = readLocalDB();
+        const filtered = filterLocal(local.purchaseOrders, query);
+        const setFields = update.$set || update;
+        filtered.forEach(po => {
+          Object.assign(po, setFields);
+          po.updatedAt = new Date().toISOString();
+        });
+        writeLocalDB(local);
+        return { nModified: filtered.length };
+      }
+    }
   }
 };
+

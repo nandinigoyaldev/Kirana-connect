@@ -413,5 +413,61 @@
         }
       ]
     }
+  ],
+  "suppliers": [
+    {
+      "_id": "25cf092e-2eb5-4fcc-867b-d978a4935c96",
+      "id": "25cf092e-2eb5-4fcc-867b-d978a4935c96",
+      "name": "Test Supplier India Ltd",
+      "phone": "+91 99999 00000",
+      "email": "contact@testsupplier.co.in",
+      "GSTIN": "07AAAAA1111A1Z1",
+      "address": "Industrial Area Phase 2, Okhla, New Delhi",
+      "category": "Grocery",
+      "notes": "Automated integration test supplier onboarding",
+      "active": true,
+      "createdAt": "2026-07-16T12:51:47.713Z",
+      "updatedAt": "2026-07-16T12:51:47.713Z"
+    }
+  ],
+  "purchaseOrders": [
+    {
+      "_id": "811df9e1-5930-46b3-aa31-7c08638340b5",
+      "id": "811df9e1-5930-46b3-aa31-7c08638340b5",
+      "storeId": "60d5ec49867c293444747b11",
+      "supplierId": "25cf092e-2eb5-4fcc-867b-d978a4935c96",
+      "orderNumber": "PO-10001",
+      "status": "completed",
+      "expectedDeliveryDate": "2026-07-23T12:51:47.716Z",
+      "subtotal": 1300,
+      "tax": 234,
+      "total": 1534,
+      "paymentStatus": "pending",
+      "notes": "Procurement order for milk and bread restock",
+      "items": [
+        {
+          "productId": "60d5ec49867c293444747b21",
+          "name": "Amul Gold Milk (1L)",
+          "quantityOrdered": 20,
+          "quantityReceived": 20,
+          "buyingPrice": 50,
+          "sellingPrice": 65,
+          "batchNumber": "B-TEST-M2",
+          "expiryDate": "2027-01-15"
+        },
+        {
+          "productId": "60d5ec49867c293444747b22",
+          "name": "Britannia Premium Bread",
+          "quantityOrdered": 10,
+          "quantityReceived": 10,
+          "buyingPrice": 30,
+          "sellingPrice": 40,
+          "batchNumber": "B-TEST-B2",
+          "expiryDate": "2026-11-15"
+        }
+      ],
+      "createdAt": "2026-07-16T12:51:48.308Z",
+      "updatedAt": "2026-07-16T12:51:50.697Z"
+    }
   ]
 }

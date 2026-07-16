@@ -710,6 +710,424 @@ app.get('/api/admin/metrics', authenticateToken, async (req, res) => {
   }
 });
 
+// --- SUPPLIER & PROCUREMENT MANAGEMENT MODULE ---
+
+// 1. Supplier CRUD APIs
+app.get('/api/suppliers', authenticateToken, async (req, res) => {
+  try {
+    const { search, category, page = 1, limit = 10 } = req.query;
+    let suppliers = await db.suppliers.find();
+    
+    if (search) {
+      const query = search.toLowerCase();
+      suppliers = suppliers.filter(s => 
+        (s.name && s.name.toLowerCase().includes(query)) || 
+        (s.phone && s.phone.includes(query)) || 
+        (s.email && s.email.toLowerCase().includes(query))
+      );
+    }
+    
+    if (category) {
+      suppliers = suppliers.filter(s => s.category === category);
+    }
+    
+    const total = suppliers.length;
+    const startIndex = (page - 1) * limit;
+    const paginated = suppliers.slice(startIndex, startIndex + Number(limit));
+    
+    res.json({
+      suppliers: paginated,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit)
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/api/suppliers/:id', authenticateToken, async (req, res) => {
+  try {
+    const supplier = await db.suppliers.findById(req.params.id);
+    if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
+    res.json({ supplier });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/suppliers', authenticateToken, async (req, res) => {
+  const { name, phone, email, GSTIN, address, category, notes } = req.body;
+  if (!name) return res.status(400).json({ message: 'Supplier name is required' });
+  try {
+    const supplier = await db.suppliers.create({ name, phone, email, GSTIN, address, category, notes, active: true });
+    res.status(201).json({ supplier });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.put('/api/suppliers/:id', authenticateToken, async (req, res) => {
+  try {
+    const existing = await db.suppliers.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Supplier not found' });
+    
+    await db.suppliers.updateOne({ id: req.params.id }, req.body);
+    const updated = await db.suppliers.findById(req.params.id);
+    res.json({ supplier: updated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. Purchase Order CRUD & Workflow APIs
+app.get('/api/purchase-orders', authenticateToken, async (req, res) => {
+  const storeId = req.user.storeId;
+  if (!storeId) return res.status(400).json({ message: 'User does not manage a store' });
+  try {
+    const { status, search, page = 1, limit = 10 } = req.query;
+    let pos = await db.purchaseOrders.find({ storeId });
+    
+    if (status) {
+      pos = pos.filter(po => po.status === status);
+    }
+    
+    if (search) {
+      const query = search.toLowerCase();
+      pos = pos.filter(po => 
+        (po.orderNumber && po.orderNumber.toLowerCase().includes(query)) || 
+        (po.notes && po.notes.toLowerCase().includes(query))
+      );
+    }
+    
+    const total = pos.length;
+    const startIndex = (page - 1) * limit;
+    const paginated = pos.slice(startIndex, startIndex + Number(limit));
+    
+    const suppliers = await db.suppliers.find();
+    const enriched = paginated.map(po => {
+      const sup = suppliers.find(s => String(s._id) === String(po.supplierId) || String(s.id) === String(po.supplierId));
+      return {
+        ...po,
+        supplierName: sup ? sup.name : 'Unknown Supplier'
+      };
+    });
+    
+    res.json({
+      purchaseOrders: enriched,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit)
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/api/purchase-orders/:id', authenticateToken, async (req, res) => {
+  try {
+    const po = await db.purchaseOrders.findById(req.params.id);
+    if (!po) return res.status(404).json({ message: 'Purchase order not found' });
+    
+    const supplier = await db.suppliers.findById(po.supplierId);
+    res.json({
+      purchaseOrder: {
+        ...po,
+        supplierName: supplier ? supplier.name : 'Unknown Supplier',
+        supplierGSTIN: supplier ? supplier.GSTIN : ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/purchase-orders', authenticateToken, async (req, res) => {
+  const storeId = req.user.storeId;
+  if (!storeId) return res.status(400).json({ message: 'User does not manage a store' });
+  
+  const { supplierId, expectedDeliveryDate, items, notes, status = 'ordered', paymentStatus = 'pending' } = req.body;
+  if (!supplierId) return res.status(400).json({ message: 'Supplier ID is required' });
+  if (!items || items.length === 0) return res.status(400).json({ message: 'Purchase items are required' });
+  
+  try {
+    const allPOs = await db.purchaseOrders.find({ storeId });
+    const nextNum = 10001 + allPOs.length;
+    const orderNumber = `PO-${nextNum}`;
+    
+    let subtotal = 0;
+    const formattedItems = items.map(item => {
+      const qtyOrdered = Number(item.quantityOrdered || 0);
+      const buyingPrice = Number(item.buyingPrice || 0);
+      const cost = qtyOrdered * buyingPrice;
+      subtotal += cost;
+      return {
+        productId: item.productId,
+        name: item.name || 'Product',
+        quantityOrdered: qtyOrdered,
+        quantityReceived: 0,
+        buyingPrice,
+        sellingPrice: Number(item.sellingPrice || 0),
+        batchNumber: item.batchNumber || '',
+        expiryDate: item.expiryDate || null
+      };
+    });
+    
+    const tax = Math.round(subtotal * 0.18); // 18% standard GST
+    const total = subtotal + tax;
+    
+    const newPO = await db.purchaseOrders.create({
+      storeId,
+      supplierId,
+      orderNumber,
+      status,
+      expectedDeliveryDate,
+      subtotal,
+      tax,
+      total,
+      paymentStatus,
+      notes,
+      items: formattedItems
+    });
+    
+    res.status(201).json({ purchaseOrder: newPO });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/purchase-orders/:id/receive', authenticateToken, async (req, res) => {
+  const storeId = req.user.storeId;
+  if (!storeId) return res.status(400).json({ message: 'User does not manage a store' });
+  
+  const { items: receivedItems } = req.body;
+  if (!receivedItems || receivedItems.length === 0) {
+    return res.status(400).json({ message: 'Received items list is required' });
+  }
+  
+  try {
+    const po = await db.purchaseOrders.findById(req.params.id);
+    if (!po) return res.status(404).json({ message: 'Purchase order not found' });
+    
+    if (po.status === 'completed' || po.status === 'cancelled') {
+      return res.status(400).json({ message: `Cannot receive stock on a ${po.status} purchase order` });
+    }
+    
+    const updatedItems = po.items.map(item => {
+      const receivedData = receivedItems.find(ri => String(ri.productId) === String(item.productId));
+      if (receivedData) {
+        const qtyRec = Number(receivedData.quantityReceived || 0);
+        const maxRemaining = item.quantityOrdered - item.quantityReceived;
+        // Enforce boundary check to prevent receiving more than ordered
+        const actualQty = Math.max(0, Math.min(qtyRec, maxRemaining));
+        
+        return {
+          ...item,
+          quantityReceived: item.quantityReceived + actualQty,
+          batchNumber: receivedData.batchNumber || item.batchNumber,
+          expiryDate: receivedData.expiryDate || item.expiryDate
+        };
+      }
+      return item;
+    });
+    
+    // Determine status transitions
+    let allCompleted = true;
+    let anyReceived = false;
+    
+    for (const item of updatedItems) {
+      if (item.quantityReceived < item.quantityOrdered) {
+        allCompleted = false;
+      }
+      if (item.quantityReceived > 0) {
+        anyReceived = true;
+      }
+    }
+    
+    const newStatus = allCompleted ? 'completed' : (anyReceived ? 'partially_received' : po.status);
+    
+    await db.purchaseOrders.updateOne(
+      { id: req.params.id },
+      { status: newStatus, items: updatedItems }
+    );
+    
+    // Update store inventory using delta values
+    for (const ri of receivedItems) {
+      const qtyRec = Number(ri.quantityReceived || 0);
+      if (qtyRec <= 0) continue;
+      
+      const orderItem = po.items.find(oi => String(oi.productId) === String(ri.productId));
+      const buyingPrice = orderItem ? orderItem.buyingPrice : 0;
+      const sellingPrice = orderItem ? orderItem.sellingPrice : 0;
+      
+      const existingInv = await db.inventory.findOne({ storeId, productId: ri.productId });
+      let nextStock = qtyRec;
+      if (existingInv) {
+        nextStock = existingInv.stock + qtyRec;
+        await db.inventory.updateOne(
+          { storeId, productId: ri.productId },
+          { stock: nextStock }
+        );
+      } else {
+        await db.inventory.create({
+          storeId,
+          productId: ri.productId,
+          stock: nextStock,
+          price: sellingPrice || Math.round(buyingPrice * 1.25),
+          isAvailable: true
+        });
+      }
+      
+      // Emit real-time inventory stock change
+      io.emit('stock_updated', {
+        storeId,
+        productId: ri.productId,
+        stock: nextStock,
+        price: existingInv ? existingInv.price : (sellingPrice || Math.round(buyingPrice * 1.25))
+      });
+    }
+    
+    // Emit procurement workflow updates
+    io.emit('purchase_received', {
+      purchaseOrderId: po._id || po.id,
+      orderNumber: po.orderNumber,
+      status: newStatus
+    });
+    
+    if (newStatus === 'completed') {
+      io.emit('purchase_completed', {
+        purchaseOrderId: po._id || po.id,
+        orderNumber: po.orderNumber
+      });
+    }
+    
+    const refreshed = await db.purchaseOrders.findById(req.params.id);
+    res.json({ message: 'Stock received successfully', purchaseOrder: refreshed });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/purchase-orders/:id/cancel', authenticateToken, async (req, res) => {
+  try {
+    const po = await db.purchaseOrders.findById(req.params.id);
+    if (!po) return res.status(404).json({ message: 'Purchase order not found' });
+    if (po.status === 'completed' || po.status === 'cancelled') {
+      return res.status(400).json({ message: `Cannot cancel a ${po.status} purchase order` });
+    }
+    
+    await db.purchaseOrders.updateOne({ id: req.params.id }, { status: 'cancelled' });
+    res.json({ message: 'Purchase order cancelled successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. Procurement Analytics API
+app.get('/api/procurement/analytics', authenticateToken, async (req, res) => {
+  const storeId = req.user.storeId;
+  if (!storeId) return res.status(400).json({ message: 'User does not manage a store' });
+  
+  try {
+    const pos = await db.purchaseOrders.find({ storeId });
+    const suppliers = await db.suppliers.find();
+    
+    const pendingPOsCount = pos.filter(po => po.status === 'ordered' || po.status === 'partially_received').length;
+    
+    const expectedDeliveries = pos.filter(po => po.status === 'ordered' || po.status === 'partially_received')
+      .map(po => {
+        const sup = suppliers.find(s => String(s._id) === String(po.supplierId) || String(s.id) === String(po.supplierId));
+        return {
+          _id: po._id || po.id,
+          orderNumber: po.orderNumber,
+          supplierName: sup ? sup.name : 'Unknown Supplier',
+          expectedDeliveryDate: po.expectedDeliveryDate,
+          total: po.total,
+          status: po.status
+        };
+      });
+      
+    const today = new Date().toISOString().substring(0, 10);
+    let todayReceipts = 0;
+    pos.forEach(po => {
+      const poDate = new Date(po.updatedAt || po.createdAt).toISOString().substring(0, 10);
+      if (poDate === today && (po.status === 'completed' || po.status === 'partially_received')) {
+        po.items.forEach(item => {
+          todayReceipts += item.quantityReceived || 0;
+        });
+      }
+    });
+    
+    const supplierCount = suppliers.length;
+    
+    const currentYearMonth = new Date().toISOString().substring(0, 7);
+    let monthlyProcurementSpend = 0;
+    pos.forEach(po => {
+      const poDate = new Date(po.createdAt).toISOString().substring(0, 7);
+      if (poDate === currentYearMonth && po.status !== 'cancelled') {
+        monthlyProcurementSpend += po.total || 0;
+      }
+    });
+    
+    const supplierPerformance = suppliers.map(sup => {
+      const supPOs = pos.filter(po => String(po.supplierId) === String(sup._id) || String(po.supplierId) === String(sup.id));
+      const completed = supPOs.filter(po => po.status === 'completed').length;
+      const rate = supPOs.length > 0 ? Math.round((completed / supPOs.length) * 100) : 100;
+      return {
+        supplierId: sup._id || sup.id,
+        name: sup.name,
+        category: sup.category,
+        totalOrders: supPOs.length,
+        completedOrders: completed,
+        fulfillmentRate: rate
+      };
+    });
+    
+    const monthlyPurchases = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const ym = d.toISOString().substring(0, 7);
+      const monthName = d.toLocaleString('default', { month: 'short' });
+      
+      let spend = 0;
+      pos.forEach(po => {
+        const poDate = new Date(po.createdAt).toISOString().substring(0, 7);
+        if (poDate === ym && po.status !== 'cancelled') {
+          spend += po.total || 0;
+        }
+      });
+      
+      monthlyPurchases.push({ month: monthName, spend: Math.round(spend) });
+    }
+    
+    res.json({
+      summary: {
+        pendingPOsCount,
+        todayReceipts,
+        supplierCount,
+        monthlyProcurementSpend: Math.round(monthlyProcurementSpend)
+      },
+      expectedDeliveries,
+      supplierPerformance,
+      monthlyPurchases,
+      purchaseHistory: pos.map(po => {
+        const sup = suppliers.find(s => String(s._id) === String(po.supplierId) || String(s.id) === String(po.supplierId));
+        return {
+          _id: po._id || po.id,
+          orderNumber: po.orderNumber,
+          supplierName: sup ? sup.name : 'Unknown Supplier',
+          total: po.total,
+          status: po.status,
+          createdAt: po.createdAt
+        };
+      })
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Start Database and then Express server
 connectDB().then(() => {
   server.listen(PORT, () => {

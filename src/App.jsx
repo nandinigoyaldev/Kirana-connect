@@ -18,6 +18,8 @@ import VoiceInventory from './pages/VoiceInventory';
 import ShopkeeperAnalytics from './pages/ShopkeeperAnalytics';
 import DeliveryDashboard from './pages/DeliveryDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import ProcurementManager from './pages/ProcurementManager';
+
 
 // Icons
 import { 
@@ -70,7 +72,9 @@ function NavigationShell({ children }) {
           { path: '/shopkeeper/inventory', label: 'Stock Manager', icon: <Store size={20} /> },
           { path: '/shopkeeper/voice', label: 'Voice Updates', icon: <Mic size={20} /> },
           { path: '/shopkeeper/ocr', label: 'OCR Scanner', icon: <FileText size={20} /> },
+          { path: '/shopkeeper/procurement', label: 'Procurement', icon: <Truck size={20} /> },
           { path: '/shopkeeper/analytics', label: 'AI Analytics', icon: <BarChart3 size={20} /> },
+
         ];
       case 'delivery':
         return [
@@ -294,6 +298,10 @@ export default function App() {
               <Route path="/shopkeeper/analytics" element={
                 <ProtectedRoute allowedRoles={['shopkeeper']}><ShopkeeperAnalytics /></ProtectedRoute>
               } />
+              <Route path="/shopkeeper/procurement" element={
+                <ProtectedRoute allowedRoles={['shopkeeper']}><ProcurementManager /></ProtectedRoute>
+              } />
+
 
               {/* Delivery Routes */}
               <Route path="/delivery" element={
